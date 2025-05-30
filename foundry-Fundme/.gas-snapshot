@@ -1,0 +1,8 @@
+FundMeTest:testFundUpdatesDataStruct() (gas: 99859)
+FundMeTest:testFundersBeingUpdated() (gas: 100152)
+FundMeTest:testFundfail() (gas: 22998)
+FundMeTest:testMinimun() (gas: 13955)
+FundMeTest:testOnlyOwner() (gas: 102097)
+FundMeTest:testWithdraw() (gas: 91244)
+FundMeTest:testWithdrawMuiltipleDonators() (gas: 489528)
+FundMeTest:testversion() (gas: 15199)
