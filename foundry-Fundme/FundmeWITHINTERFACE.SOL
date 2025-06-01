@@ -3,9 +3,12 @@ pragma solidity ^0.8.18;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {PriceConverter} from "./PriceConverter.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // Import ERC20 interface
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MoodNft} from "./MoodNft.sol";
 
 error FundMe__NotOwner();
+error FundMe__InsufficientTokenBalance();
+error FundMe__TokenTransferFailed();
 
 contract FundMe {
     using PriceConverter for uint256;
@@ -13,67 +16,65 @@ contract FundMe {
     mapping(address => uint256) private addressToAmountFunded;
     address[] private funders;
 
-    address private /* immutable */ i_owner;
+    address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
-
+    
     AggregatorV3Interface internal priceFeed;
-    IERC20 public myERC20Token; // Declare a variable for your ERC20 token
+    IERC20 public immutable picaToken;
+    MoodNft public immutable moodNft;
+    
+    // Exchange rate: for 1 ETH worth, give 2 PicaTokens
+    uint256 public constant PICA_MULTIPLIER = 2;
 
-    constructor(address _priceFeedAddress, address _myERC20TokenAddress) {
+    event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded);
+
+    constructor(
+        address _priceFeed, 
+        address _picaToken,
+        address _moodNft
+    ) {
         i_owner = msg.sender;
-        priceFeed = AggregatorV3Interface(_priceFeedAddress);
-        myERC20Token = IERC20(_myERC20TokenAddress); // Initialize your ERC20 token
+        priceFeed = AggregatorV3Interface(_priceFeed);
+        picaToken = IERC20(_picaToken);
+        moodNft = MoodNft(_moodNft);
     }
 
     function fund() public payable {
         require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
+        
+        // Calculate how much PicaToken to give (2x the ETH value)
+        uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
+        uint256 picaTokenAmount = (ethValueInUsd * PICA_MULTIPLIER) / 1e18; // Assuming PicaToken has 18 decimals
+        
+        // Check if contract has enough PicaTokens
+        uint256 contractBalance = picaToken.balanceOf(address(this));
+        if (contractBalance < picaTokenAmount) {
+            revert FundMe__InsufficientTokenBalance();
+        }
+        
+        // Transfer PicaTokens to the funder
+        bool success = picaToken.transfer(msg.sender, picaTokenAmount);
+        if (!success) {
+            revert FundMe__TokenTransferFailed();
+        }
+        
+        // Mint an NFT for the funder
+        moodNft.mintNftTo(msg.sender);
+        
+        // Update funding records
         addressToAmountFunded[msg.sender] += msg.value;
         funders.push(msg.sender);
-
-        // --- New Logic: Grant ERC20 Tokens ---
-        // Calculate the amount of ERC20 tokens to grant.
-        // You'll need to define your own logic for how many tokens to give per ETH funded.
-        // For example, 100 of your tokens for every 1 ETH funded.
-        // Remember to consider the decimals of your ERC20 token.
-        uint256 ethAmount = msg.value; // Amount of ETH funded in Wei
-        // Example: If your ERC20 has 18 decimals and you want to give 100 tokens per ETH
-        // tokenAmount = (ethAmount * 100) / (1 ether)
-        // You'll need to adjust this formula based on your desired tokenomics.
-        // Let's assume for simplicity you want to give a fixed amount or an amount
-        // directly proportional to the ETH value, adjusting for decimals if necessary.
-        // For demonstration, let's say we grant 100 of your tokens per 1 ETH funded (adjust for decimals)
-        // If your token has 18 decimals, and you want to give 100 tokens, it's 100 * 10**18
-        uint256 tokensToGrant = (ethAmount * 100 * (10**18)) / (1 ether); // Example: 100 tokens per 1 ETH, assuming your token also has 18 decimals. Adjust (10**18) to your token's decimals.
-
-        // Make sure the contract has enough tokens to grant
-        require(myERC20Token.balanceOf(address(this)) >= tokensToGrant, "FundMe contract does not have enough tokens to grant!");
-
-        // Transfer the ERC20 tokens to the funder
-        bool success = myERC20Token.transfer(msg.sender, tokensToGrant);
-        require(success, "Failed to grant ERC20 tokens.");
-        // --- End New Logic ---
+        
+        emit Funded(msg.sender, msg.value, picaTokenAmount);
     }
 
     function getVersion() public view returns (uint256) {
-        uint256 x = priceFeed.version();
-        return x;
+        return priceFeed.version();
     }
 
     modifier onlyOwner() {
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
-    }
-
-    function cheapwithdraw() public onlyOwner {
-      uint256 funderIndex = funders.length;
-
-        for (uint256 funderIdx = 0; funderIndex < funders.length; funderIdx++) {
-            address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
-        }
-        funders = new address[](0);
-        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
-        require(callSuccess, "Call failed");
     }
 
     function withdraw() public onlyOwner {
@@ -82,8 +83,22 @@ contract FundMe {
             addressToAmountFunded[funder] = 0;
         }
         funders = new address[](0);
+        
         (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
         require(callSuccess, "Call failed");
+    }
+    
+    // Allow owner to withdraw any remaining PicaTokens
+    function withdrawPicaTokens() public onlyOwner {
+        uint256 balance = picaToken.balanceOf(address(this));
+        bool success = picaToken.transfer(i_owner, balance);
+        require(success, "Token withdrawal failed");
+    }
+    
+    // Allow owner to deposit more PicaTokens for rewards
+    function depositPicaTokens(uint256 amount) public onlyOwner {
+        bool success = picaToken.transferFrom(msg.sender, address(this), amount);
+        require(success, "Token deposit failed");
     }
 
     fallback() external payable {
@@ -94,6 +109,7 @@ contract FundMe {
         fund();
     }
 
+    // View functions
     function getHowMuchDudeFunded(address _sAdrees) external view returns (uint256) {
         return addressToAmountFunded[_sAdrees];
     }
@@ -104,5 +120,14 @@ contract FundMe {
 
     function getOwner() external view returns (address) {
         return i_owner;
+    }
+    
+    function getPicaTokenBalance() external view returns (uint256) {
+        return picaToken.balanceOf(address(this));
+    }
+    
+    function calculatePicaTokenReward(uint256 ethAmount) external view returns (uint256) {
+        uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
+        return (ethValueInUsd * PICA_MULTIPLIER) / 1e18;
     }
 }
