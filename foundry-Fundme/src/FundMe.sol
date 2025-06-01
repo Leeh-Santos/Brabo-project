@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-// Note: The AggregatorV3Interface might be at a different location than what was in the video!
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {PriceConverter} from "./PriceConverter.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {NftBrabo} from "./NftBrabo.sol";
 
 error FundMe__NotOwner();
+error FundMe__InsufficientTokenBalance();
+error FundMe__TokenTransferFailed();
 
 contract FundMe {
     using PriceConverter for uint256;
@@ -13,54 +16,65 @@ contract FundMe {
     mapping(address => uint256) private addressToAmountFunded;
     address[] private funders;
 
-
-    // Could we make this constant?  /* hint: no! We should make it immutable! */
-    address private /* immutable */ i_owner;
+    address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
-
+    
     AggregatorV3Interface internal priceFeed;
+    IERC20 public immutable picaToken;
+    MoodNft public immutable moodNft;
+    
+    // Exchange rate: for 1 ETH worth, give 2 PicaTokens
+    uint256 public constant PICA_MULTIPLIER = 2;
 
-    constructor(address _contract) {
+    event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded);
+
+    constructor(
+        address _priceFeed, 
+        address _picaToken,
+        address _moodNft
+    ) {
         i_owner = msg.sender;
-        priceFeed = AggregatorV3Interface(_contract);
+        priceFeed = AggregatorV3Interface(_priceFeed);
+        picaToken = IERC20(_picaToken);
+        moodNft = MoodNft(_moodNft);
     }
 
     function fund() public payable {
         require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
-        // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
+        
+        // Calculate how much PicaToken to give (2x the ETH value)
+        uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
+        uint256 picaTokenAmount = (ethValueInUsd * PICA_MULTIPLIER) / 1e18; // Assuming PicaToken has 18 decimals
+        
+        // Check if contract has enough PicaTokens
+        uint256 contractBalance = picaToken.balanceOf(address(this));
+        if (contractBalance < picaTokenAmount) {
+            revert FundMe__InsufficientTokenBalance();
+        }
+        
+        // Transfer PicaTokens to the funder
+        bool success = picaToken.transfer(msg.sender, picaTokenAmount);
+        if (!success) {
+            revert FundMe__TokenTransferFailed();
+        }
+        
+        // Mint an NFT for the funder
+        moodNft.mintNftTo(msg.sender);
+        
+        // Update funding records
         addressToAmountFunded[msg.sender] += msg.value;
         funders.push(msg.sender);
+        
+        emit Funded(msg.sender, msg.value, picaTokenAmount);
     }
 
     function getVersion() public view returns (uint256) {
-        uint256 x = priceFeed.version();
-        return x;
+        return priceFeed.version();
     }
 
     modifier onlyOwner() {
-        // require(msg.sender == owner);
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
-    }
-
-    function cheapwithdraw() public onlyOwner {
-      uint256 funderIndex = funders.length;
-
-         for (uint256 funderIdx = 0; funderIndex < funders.length; funderIdx++) {
-            address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
-        }
-        funders = new address[](0);
-        // // transfer
-        // payable(msg.sender).transfer(address(this).balance);
-
-        // // send
-        // bool sendSuccess = payable(msg.sender).send(address(this).balance);
-        // require(sendSuccess, "Send failed");
-
-        // call
-        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
-        require(callSuccess, "Call failed");
     }
 
     function withdraw() public onlyOwner {
@@ -69,28 +83,23 @@ contract FundMe {
             addressToAmountFunded[funder] = 0;
         }
         funders = new address[](0);
-        // // transfer
-        // payable(msg.sender).transfer(address(this).balance);
-
-        // // send
-        // bool sendSuccess = payable(msg.sender).send(address(this).balance);
-        // require(sendSuccess, "Send failed");
-
-        // call
+        
         (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
         require(callSuccess, "Call failed");
     }
-    // Explainer from: https://solidity-by-example.org/fallback/
-    // Ether is sent to contract
-    //      is msg.data empty?
-    //          /   \
-    //         yes  no
-    //         /     \
-    //    receive()?  fallback()
-    //     /   \
-    //   yes   no
-    //  /        \
-    //receive()  fallback()
+    
+    // Allow owner to withdraw any remaining PicaTokens
+    function withdrawPicaTokens() public onlyOwner {
+        uint256 balance = picaToken.balanceOf(address(this));
+        bool success = picaToken.transfer(i_owner, balance);
+        require(success, "Token withdrawal failed");
+    }
+    
+    // Allow owner to deposit more PicaTokens for rewards
+    function depositPicaTokens(uint256 amount) public onlyOwner {
+        bool success = picaToken.transferFrom(msg.sender, address(this), amount);
+        require(success, "Token deposit failed");
+    }
 
     fallback() external payable {
         fund();
@@ -100,6 +109,7 @@ contract FundMe {
         fund();
     }
 
+    // View functions
     function getHowMuchDudeFunded(address _sAdrees) external view returns (uint256) {
         return addressToAmountFunded[_sAdrees];
     }
@@ -111,15 +121,13 @@ contract FundMe {
     function getOwner() external view returns (address) {
         return i_owner;
     }
-
-
+    
+    function getPicaTokenBalance() external view returns (uint256) {
+        return picaToken.balanceOf(address(this));
+    }
+    
+    function calculatePicaTokenReward(uint256 ethAmount) external view returns (uint256) {
+        uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
+        return (ethValueInUsd * PICA_MULTIPLIER) / 1e18;
+    }
 }
-
-// Concepts we didn't cover yet (will cover in later sections)
-// 1. Enum
-// 2. Events
-// 3. Try / Catch
-// 4. Function Selector
-// 5. abi.encode / decode
-// 6. Hash with keccak256
-// 7. Yul / Assembly
