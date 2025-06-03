@@ -21,7 +21,7 @@ contract FundMe {
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
-    MoodNft public immutable moodNft;
+    NftBrabo public immutable braboNft;
     
     // Exchange rate: for 1 ETH worth, give 2 PicaTokens
     uint256 public constant PICA_MULTIPLIER = 2;
@@ -36,7 +36,7 @@ contract FundMe {
         i_owner = msg.sender;
         priceFeed = AggregatorV3Interface(_priceFeed);
         picaToken = IERC20(_picaToken);
-        moodNft = MoodNft(_moodNft);
+        braboNft = NftBrabo(_moodNft);
     }
 
     function fund() public payable {
@@ -59,7 +59,7 @@ contract FundMe {
         }
         
         // Mint an NFT for the funder
-        moodNft.mintNftTo(msg.sender);
+        braboNft.mintNftTo(msg.sender);
         
         // Update funding records
         addressToAmountFunded[msg.sender] += msg.value;
