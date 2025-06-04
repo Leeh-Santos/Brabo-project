@@ -14,15 +14,8 @@ contract DeployWithoutTransfer is Script {
         console.log("Using existing PicaToken at:", picaTokenAddress);
         
         // Get price feed address based on network
-        address priceFeedAddress;
-        if (block.chainid == 11155111) {
-            priceFeedAddress = 0x694AA1769357215DE4FAC081bf1f309aDC325306; // Sepolia
-        } else if (block.chainid == 1) {
-            priceFeedAddress = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419; // Mainnet
-        } else {
-            revert("Network not supported - deploy a mock price feed first");
-        }
-        
+        address priceFeedAddress = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
+       
         // SVG URIs
         string memory happySvg = "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI4MCIgZmlsbD0ieWVsbG93IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjgwIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTAiIGZpbGw9ImJsYWNrIi8+PHBhdGggZD0iTSA2MCAxMjAgUSAxMDAgMTUwIDE0MCAxMjAiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==";
         string memory sadSvg = "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI4MCIgZmlsbD0ieWVsbG93IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjgwIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTAiIGZpbGw9ImJsYWNrIi8+PHBhdGggZD0iTSA2MCAxNDAgUSAxMDAgMTIwIDE0MCAxNDAiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==";
