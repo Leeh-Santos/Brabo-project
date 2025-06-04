@@ -2,8 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {Script} from "forge-std/Script.sol";
-import {PicaToken} from "../src/PicaToken.sol";
-import {MoodNft} from "../src/MoodNft.sol";
+import {NftBrabo} from "../src/NftBrabo.sol";
 import {FundMe} from "../src/FundMe.sol";
 import {console} from "forge-std/console.sol";
 
@@ -31,19 +30,19 @@ contract DeployWithoutTransfer is Script {
         vm.startBroadcast();
         
         // Deploy contracts
-        MoodNft moodNft = new MoodNft(sadSvg, happySvg);
-        FundMe fundMe = new FundMe(priceFeedAddress, picaTokenAddress, address(moodNft));
+        NftBrabo braboNft = new NftBrabo(sadSvg, happySvg);
+        FundMe fundMe = new FundMe(priceFeedAddress, picaTokenAddress, address(braboNft));
         
         // Setup - only set minter, no token transfer
-        moodNft.setMinterContract(address(fundMe));
+        braboNft.setMinterContract(address(fundMe));
         
         vm.stopBroadcast();
         
         // Output
-        console.log("\n✅ Deployment Complete!");
-        console.log("MoodNft:", address(moodNft));
+        console.log("\n Deployment Complete!");
+        console.log("MoodNft:", address(braboNft));
         console.log("FundMe:", address(fundMe));
-        console.log("\n⚠️  IMPORTANT: You need to manually transfer PicaTokens to the FundMe contract!");
+        console.log("\n  IMPORTANT: You need to manually transfer PicaTokens to the FundMe contract!");
         console.log("    FundMe address:", address(fundMe));
         console.log("    Recommended amount: 100,000 PCT or more");
         console.log("\nTo transfer tokens using MetaMask:");

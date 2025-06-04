@@ -67,6 +67,13 @@ contract NftBrabo is ERC721 {
       
     }*/
 
+   function getMoodString(uint256 tokenId) internal view returns (string memory) {
+        MOOD mood = s_tokenIdtoMood[tokenId];
+        if (mood == MOOD.GOLD) return "Gold";
+        if (mood == MOOD.SILVER) return "Silver";
+        return "Bronze";
+    }
+
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
 
@@ -81,22 +88,22 @@ contract NftBrabo is ERC721 {
         }
 
         return string(
-            abi.encodePacked(
-                _baseURI(),
-                Base64.encode(
-                    bytes(
-                        abi.encodePacked(
-                            '{"name":"',
-                            name(),
-                            '", "description":"An NFT that reflects how BRABO you are, ", ',
-                            '"attributes": [{"trait_type": "moodiness", "value": 100}], "image":"',
-                            imageURI,
-                            '"}'
-                        )
-                    )
-                )
-            )
-        );
+             abi.encodePacked(
+                 _baseURI(),
+                 Base64.encode(
+                     bytes(
+                         abi.encodePacked(
+                             '{"name":"',
+                             name(),
+                             '", "description":"A reactive NFT that reflects how BRABO you are, three tiers available: Bronze, Silver and Gold", ',
+                             '"attributes": [{"trait_type": "Tier", "value": "', getMoodString(tokenId), '"}], "image":"',
+                             imageURI,
+                             '"}'
+                         )
+                     )
+                 )
+             )
+         );
     }
 
     function getTotalSupply() external view returns (uint256) {
