@@ -23,7 +23,6 @@ contract FundMe {
     IERC20 public immutable picaToken;
     NftBrabo public immutable braboNft;
     
-    // Exchange rate: for 1 ETH worth, give 2 PicaTokens
     uint256 public constant PICA_MULTIPLIER = 2;
 
     event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded);
@@ -44,7 +43,7 @@ contract FundMe {
         
         // Calculate how much PicaToken to give (2x the ETH value)
         uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
-        uint256 picaTokenAmount = (ethValueInUsd * PICA_MULTIPLIER) / 1e18; // Assuming PicaToken has 18 decimals
+        uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER; // Assuming PicaToken has 18 decimals
         
         // Check if contract has enough PicaTokens
         uint256 contractBalance = picaToken.balanceOf(address(this));
@@ -58,10 +57,10 @@ contract FundMe {
             revert FundMe__TokenTransferFailed();
         }
         
-        // Mint an NFT for the funder
+    
         braboNft.mintNftTo(msg.sender);
         
-        // Update funding records
+
         addressToAmountFunded[msg.sender] += msg.value;
         funders.push(msg.sender);
         
@@ -88,7 +87,7 @@ contract FundMe {
         require(callSuccess, "Call failed");
     }
     
-    // Allow owner to withdraw any remaining PicaTokens
+    
     function withdrawPicaTokens() public onlyOwner {
         uint256 balance = picaToken.balanceOf(address(this));
         bool success = picaToken.transfer(i_owner, balance);
