@@ -14,10 +14,13 @@ contract FundMe {
     using PriceConverter for uint256;
 
     mapping(address => uint256) private addressToAmountFunded;
+    mapping(address => uint256) private addressToAmountFundedInUsd;
+    mapping(address => bool) private alreadyReceivedNft;
+    mapping(address => bool) private hasFunded;
     address[] private funders;
 
     address private immutable i_owner;
-    uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
+    uint256 public constant MINIMUM_USD = 1 * 10 ** 18;
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
@@ -26,6 +29,8 @@ contract FundMe {
     uint256 public constant PICA_MULTIPLIER = 2;
 
     event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded);
+    event NftMinted(address indexed recipient);
+    event TierUpgraded(address indexed user, uint256 totalFundingUsd);
 
     constructor(
         address _priceFeed, 
@@ -43,28 +48,40 @@ contract FundMe {
         
         // Calculate how much PicaToken to give (2x the ETH value)
         uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
-        uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER; // Assuming PicaToken has 18 decimals
+        uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER;
         
-        // Check if contract has enough PicaTokens
+        
+        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 10 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
+            alreadyReceivedNft[msg.sender] = true;
+            braboNft.mintNftTo(msg.sender);
+            emit NftMinted(msg.sender);
+        }
+       
+        addressToAmountFunded[msg.sender] += msg.value;
+        addressToAmountFundedInUsd[msg.sender] += ethValueInUsd;
+
+        if (!hasFunded[msg.sender]) {
+            funders.push(msg.sender);       
+            hasFunded[msg.sender] = true;
+        }
+       
         uint256 contractBalance = picaToken.balanceOf(address(this));
         if (contractBalance < picaTokenAmount) {
             revert FundMe__InsufficientTokenBalance();
         }
         
-        // Transfer PicaTokens to the funder
         bool success = picaToken.transfer(msg.sender, picaTokenAmount);
         if (!success) {
             revert FundMe__TokenTransferFailed();
         }
-        
-    
-        braboNft.mintNftTo(msg.sender);
-        
 
-        addressToAmountFunded[msg.sender] += msg.value;
-        funders.push(msg.sender);
-        
         emit Funded(msg.sender, msg.value, picaTokenAmount);
+    }
+
+    function upgradeTierForUser(address user) external onlyOwner {
+        require(alreadyReceivedNft[user], "User doesn't have an NFT");
+        braboNft.upgradeTierBasedOnFunding(user, addressToAmountFundedInUsd[user]);
+        emit TierUpgraded(user, addressToAmountFundedInUsd[user]);
     }
 
     function getVersion() public view returns (uint256) {
@@ -111,6 +128,9 @@ contract FundMe {
     // View functions
     function getHowMuchDudeFunded(address _sAdrees) external view returns (uint256) {
         return addressToAmountFunded[_sAdrees];
+    }
+    function getHowMuchDudeFundedInUsd(address _sAdrees) external view returns (uint256) {
+        return addressToAmountFundedInUsd[_sAdrees];
     }
 
     function getFunders(uint256 _idx) external view returns (address) {

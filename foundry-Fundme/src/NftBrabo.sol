@@ -9,7 +9,7 @@ contract NftBrabo is ERC721 {
 
     error MoodNft__CantFlipMoodIfNotOwner();
     error MoodNft__NotAuthorizedToMint();
-
+    
     uint256 private s_tokenIdCounter;
     string private s_bronzeSvgUriimage;
     string private s_silverSvgUriimage;
@@ -18,13 +18,16 @@ contract NftBrabo is ERC721 {
     address public immutable i_owner;
     address public minterContract;
 
+    mapping(uint256 => MOOD) private s_tokenIdtoMood;
+    mapping(address => uint256[]) private s_ownerToTokenIds;
+
+
     enum MOOD {
         BRONZE,
         SILVER,
         GOLD
     }
     
-    mapping(uint256 => MOOD) private s_tokenIdtoMood;
 
     modifier onlyOwner() {
         require(msg.sender == i_owner, "Not owner");
@@ -61,7 +64,7 @@ contract NftBrabo is ERC721 {
         return "data:application/json;base64,";
     }
 
-    /*function flipMood(uint256 tokenId) public { /// different logic 
+    /*function checkTier(uint256 tokenId) public { /// different logic 
         require(_ownerOf(tokenId) == msg.sender, "Not token owner");
         
       
