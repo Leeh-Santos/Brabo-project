@@ -60,6 +60,11 @@ contract FundMe {
         addressToAmountFunded[msg.sender] += msg.value;
         addressToAmountFundedInUsd[msg.sender] += ethValueInUsd;
 
+        if (alreadyReceivedNft[msg.sender]) {
+            braboNft.upgradeTierBasedOnFunding(msg.sender, addressToAmountFundedInUsd[msg.sender]);
+            emit TierUpgraded(msg.sender, addressToAmountFundedInUsd[msg.sender]);
+        }
+
         if (!hasFunded[msg.sender]) {
             funders.push(msg.sender);       
             hasFunded[msg.sender] = true;

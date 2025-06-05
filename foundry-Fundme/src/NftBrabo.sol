@@ -9,6 +9,7 @@ contract NftBrabo is ERC721 {
 
     error MoodNft__CantFlipMoodIfNotOwner();
     error MoodNft__NotAuthorizedToMint();
+    error MoodNft__TokenDoesNotExist();
     
     uint256 private s_tokenIdCounter;
     string private s_bronzeSvgUriimage;
@@ -19,8 +20,10 @@ contract NftBrabo is ERC721 {
     address public minterContract;
 
     mapping(uint256 => MOOD) private s_tokenIdtoMood;
-    mapping(address => uint256[]) private s_ownerToTokenIds;
+    mapping(address => uint256) private s_ownerToTokenId;
+    mapping(address => bool) private s_hasNft;
 
+    event TierUpgraded(uint256 indexed tokenId, address indexed owner, MOOD newTier);
 
     enum MOOD {
         BRONZE,
@@ -57,6 +60,8 @@ contract NftBrabo is ERC721 {
     function mintNftTo(address recipient) public onlyMinter {
         _safeMint(recipient, s_tokenIdCounter);
         s_tokenIdtoMood[s_tokenIdCounter] = MOOD.BRONZE;
+        s_ownerToTokenId[recipient] = s_tokenIdCounter;
+        s_hasNft[recipient] = true;
         s_tokenIdCounter++;
     }
 
@@ -75,6 +80,34 @@ contract NftBrabo is ERC721 {
         if (mood == MOOD.GOLD) return "Gold";
         if (mood == MOOD.SILVER) return "Silver";
         return "Bronze";
+    }
+
+    function upgradeTierBasedOnFunding(address user, uint256 fundingAmountUsd) external onlyMinter {
+        
+        if (!s_hasNft[user]) {
+            return;
+        }
+        
+        uint256 tokenId = s_ownerToTokenId[user];
+        
+        MOOD newTier;
+        uint256 fundingInDollars = fundingAmountUsd / 1e18;
+        
+        if (fundingInDollars >= 1000) {
+            newTier = MOOD.GOLD;
+        } else if (fundingInDollars >= 100) {
+            newTier = MOOD.SILVER;
+        } else {
+            newTier = MOOD.BRONZE;
+        }
+
+        MOOD currentTier = s_tokenIdtoMood[tokenId];
+        
+        // Only upgrade if the new tier is higher than current
+        if (newTier > currentTier) {
+            s_tokenIdtoMood[tokenId] = newTier;
+            emit TierUpgraded(tokenId, user, newTier);
+        }
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
