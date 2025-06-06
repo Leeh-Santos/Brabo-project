@@ -134,6 +134,11 @@ contract FundMe {
     function getHowMuchDudeFunded(address _sAdrees) external view returns (uint256) {
         return addressToAmountFunded[_sAdrees];
     }
+
+    function getHowMuchDudeFundedInUsdActual(address _address) external view returns (uint256) {
+        return addressToAmountFundedInUsd[_address] / 1e18;
+    }
+
     function getHowMuchDudeFundedInUsd(address _sAdrees) external view returns (uint256) {
         return addressToAmountFundedInUsd[_sAdrees];
     }
