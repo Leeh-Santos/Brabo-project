@@ -5,31 +5,34 @@ import {Script} from "forge-std/Script.sol";
 import {NftBrabo} from "../src/NftBrabo.sol";
 import {FundMe} from "../src/FundMe.sol";
 import {console} from "forge-std/console.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
-contract DeployWithoutTransfer is Script {
-    function run() external {
+contract DeployFundme is Script {
+    function run() external returns (FundMe, NftBrabo) {
         // Read PicaToken address from environment variable
         address picaTokenAddress = vm.envAddress("PICA_TOKEN_ADDRESS");
+
+        string memory bronzeSvg = vm.readFile("./img/bronze.sgv");
+        string memory silverSvg = vm.readFile("./img/silver.sgv");
+        string memory goldSvg = vm.readFile("./img/gold.sgv");
         
-        console.log("Using existing PicaToken at:", picaTokenAddress);
-        
+    
         // Get price feed address based on network
         address priceFeedAddress = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
        
-        // SVG URIs
-        string memory happySvg = "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI4MCIgZmlsbD0ieWVsbG93IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjgwIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTAiIGZpbGw9ImJsYWNrIi8+PHBhdGggZD0iTSA2MCAxMjAgUSAxMDAgMTUwIDE0MCAxMjAiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==";
-        string memory sadSvg = "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI4MCIgZmlsbD0ieWVsbG93IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjgwIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTAiIGZpbGw9ImJsYWNrIi8+PHBhdGggZD0iTSA2MCAxNDAgUSAxMDAgMTIwIDE0MCAxNDAiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==";
-        
+     
         vm.startBroadcast();
         
         // Deploy contracts
-        NftBrabo braboNft = new NftBrabo(sadSvg, happySvg);
+        NftBrabo braboNft = new NftBrabo(bronzeSvg, silverSvg, goldSvg);
         FundMe fundMe = new FundMe(priceFeedAddress, picaTokenAddress, address(braboNft));
         
         // Setup - only set minter, no token transfer
         braboNft.setMinterContract(address(fundMe));
         
         vm.stopBroadcast();
+
+        
         
         // Output
         console.log("\n Deployment Complete!");
@@ -46,5 +49,6 @@ contract DeployWithoutTransfer is Script {
         console.log("5. Enter the amount you want to transfer");
         console.log("6. Confirm the transaction");
         console.log("\nSave these addresses for future interactions!");
+        return (fundMe, braboNft);
     }
 }
