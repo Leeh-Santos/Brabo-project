@@ -69,11 +69,6 @@ contract NftBrabo is ERC721 {
         return "data:application/json;base64,";
     }
 
-    /*function checkTier(uint256 tokenId) public { /// different logic 
-        require(_ownerOf(tokenId) == msg.sender, "Not token owner");
-        
-      
-    }*/
 
    function getMoodString(uint256 tokenId) internal view returns (string memory) {
         MOOD mood = s_tokenIdtoMood[tokenId];
