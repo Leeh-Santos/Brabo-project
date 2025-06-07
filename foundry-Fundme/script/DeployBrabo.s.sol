@@ -22,8 +22,8 @@ contract DeployFundme is Script {
      
         vm.startBroadcast();
         
-        // Deploy contracts
-        NftBrabo braboNft = new NftBrabo(bronzeSvg, silverSvg, goldSvg);
+        
+        NftBrabo braboNft = new NftBrabo(svgToImageUri(bronzeSvg),svgToImageUri(silverSvg), svgToImageUri(goldSvg));
         FundMe fundMe = new FundMe(priceFeedAddress, picaTokenAddress, address(braboNft));
         
         // Setup - only set minter, no token transfer
@@ -49,5 +49,12 @@ contract DeployFundme is Script {
         console.log("6. Confirm the transaction");
         console.log("\nSave these addresses for future interactions!");
         return (fundMe, braboNft);
+    }
+
+    function svgToImageUri (string memory svg) public pure returns (string memory) {
+        string memory baseUrl = "data:image/svg+xml;base64,";
+        string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(svg))));
+
+        return string(abi.encodePacked(baseUrl, svgBase64Encoded));
     }
 }

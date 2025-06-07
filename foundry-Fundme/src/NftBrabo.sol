@@ -17,7 +17,7 @@ contract NftBrabo is ERC721 {
     string private s_goldSvgUriimage;
     
     address public immutable i_owner;
-    address public minterContract;
+    address public s_minterContract;
 
     mapping(uint256 => MOOD) private s_tokenIdtoMood;
     mapping(address => uint256) private s_ownerToTokenId;
@@ -38,7 +38,7 @@ contract NftBrabo is ERC721 {
     }
 
     modifier onlyMinter() {
-        if (msg.sender != minterContract && msg.sender != i_owner) {
+        if (msg.sender != s_minterContract && msg.sender != i_owner) {
             revert MoodNft__NotAuthorizedToMint();
         }
         _;
@@ -53,7 +53,7 @@ contract NftBrabo is ERC721 {
     }
 
     function setMinterContract(address _minterContract) external onlyOwner {
-        minterContract = _minterContract;
+        s_minterContract = _minterContract;
     }
 
 
