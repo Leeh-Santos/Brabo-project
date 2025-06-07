@@ -98,7 +98,6 @@ contract NftBrabo is ERC721 {
 
         MOOD currentTier = s_tokenIdtoMood[tokenId];
         
-        // Only upgrade if the new tier is higher than current
         if (newTier > currentTier) {
             s_tokenIdtoMood[tokenId] = newTier;
             emit TierUpgraded(tokenId, user, newTier);
@@ -139,5 +138,12 @@ contract NftBrabo is ERC721 {
 
     function getTotalSupply() external view returns (uint256) {
         return s_tokenIdCounter;
+    }
+
+    function getTokenIdByOwner(address owner) external view returns (uint256) {
+        if (!s_hasNft[owner]) {
+            revert MoodNft__TokenDoesNotExist();
+        }
+        return s_ownerToTokenId[owner];
     }
 }
