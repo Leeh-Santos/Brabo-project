@@ -9,7 +9,6 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 contract DeployFundme is Script {
     function run() external returns (FundMe, NftBrabo) {
-        // Read PicaToken address from environment variable
         address picaTokenAddress = vm.envAddress("PICA_TOKEN_ADDRESS");
 
         string memory bronzeSvg = vm.readFile("./img/bronze.sgv");
@@ -17,7 +16,7 @@ contract DeployFundme is Script {
         string memory goldSvg = vm.readFile("./img/gold.sgv");
         
     
-        // Get price feed address based on network
+        // sepolia
         address priceFeedAddress = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
        
      
