@@ -22,7 +22,6 @@ library PriceConverter {
     ) internal view returns (uint256) {
         uint256 ethPrice = getPrice(Pricefed);
         uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1000000000000000000;
-        // the actual ETH/USD conversion rate, after adjusting the extra 0s.
         return ethAmountInUsd;
     }
 }

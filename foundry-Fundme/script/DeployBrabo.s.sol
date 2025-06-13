@@ -11,9 +11,9 @@ contract DeployFundme is Script {
     function run() external returns (FundMe, NftBrabo) {
         address picaTokenAddress = vm.envAddress("PICA_TOKEN_ADDRESS");
 
-        string memory bronzeSvg = vm.readFile("./img/bronze.sgv");
-        string memory silverSvg = vm.readFile("./img/silver.sgv");
-        string memory goldSvg = vm.readFile("./img/gold.sgv");
+        string memory bronzeSvg = vm.readFile("./img/bronze.svg");
+        string memory silverSvg = vm.readFile("./img/silver.svg");
+        string memory goldSvg = vm.readFile("./img/gold.svg");
         
     
         // sepolia

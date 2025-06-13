@@ -10,6 +10,7 @@ contract NftBrabo is ERC721 {
     error MoodNft__CantFlipMoodIfNotOwner();
     error MoodNft__NotAuthorizedToMint();
     error MoodNft__TokenDoesNotExist();
+    error MoodNft__AlreadyHasNft();
     
     uint256 private s_tokenIdCounter;
     string private s_bronzeSvgUriimage;
@@ -58,6 +59,7 @@ contract NftBrabo is ERC721 {
 
 
     function mintNftTo(address recipient) public onlyMinter {
+        require(!s_hasNft[recipient], "Address already has an NFT");
         _safeMint(recipient, s_tokenIdCounter);
         s_tokenIdtoMood[s_tokenIdCounter] = MOOD.BRONZE;
         s_ownerToTokenId[recipient] = s_tokenIdCounter;
@@ -131,7 +133,7 @@ contract NftBrabo is ERC721 {
                              '"}'
                          )
                      )
-                 )
+                 )  
              )
          );
     }
@@ -146,4 +148,28 @@ contract NftBrabo is ERC721 {
         }
         return s_ownerToTokenId[owner];
     }
+
+
+    
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
+        address from = _ownerOf(tokenId);
+
+        
+        address previousOwner = super._update(to, tokenId, auth);
+
+        
+        if (from != address(0) && to != address(0) && from != to) {
+            
+            s_hasNft[from] = false;
+            delete s_ownerToTokenId[from];
+
+            
+            s_hasNft[to] = true;
+            s_ownerToTokenId[to] = tokenId;
+        }
+
+    return previousOwner;
+}
+
+    
 }
