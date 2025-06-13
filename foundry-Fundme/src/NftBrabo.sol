@@ -107,7 +107,7 @@ contract NftBrabo is ERC721 {
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        require(_exists(tokenId), "Token does not exist");
 
         string memory imageURI;
 
@@ -151,25 +151,22 @@ contract NftBrabo is ERC721 {
 
 
     
-    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
-        address from = _ownerOf(tokenId);
-
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
         
-        address previousOwner = super._update(to, tokenId, auth);
-
-        
-        if (from != address(0) && to != address(0) && from != to) {
-            
+        // Handle transfer tracking (except for minting/burning)
+        if (from != address(0) && to != address(0)) {
+            // Update mappings for transfers
             s_hasNft[from] = false;
             delete s_ownerToTokenId[from];
-
             
             s_hasNft[to] = true;
             s_ownerToTokenId[to] = tokenId;
         }
-
-    return previousOwner;
-}
-
-    
+    }
 }

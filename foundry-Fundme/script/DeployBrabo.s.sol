@@ -20,7 +20,7 @@ contract DeployFundme is Script {
         address priceFeedAddress = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
        
      
-        vm.startBroadcast();
+        vm.startBroadcast(); 
         
         
         NftBrabo braboNft = new NftBrabo(svgToImageUri(bronzeSvg),svgToImageUri(silverSvg), svgToImageUri(goldSvg));
