@@ -42,3 +42,18 @@ SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet
 Transactions saved to: /home/learodri/Brabo-project-forge/foundry-Fundme/broadcast/DeployFundMe.s.sol/11155111/dry-run/run-latest.json
 
 Sensitive values saved to: /home/learodri/Brabo-project-forge/foundry-Fundme/cache/DeployFundMe.s.sol/11155111/dry-run/run-latest.json
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+170119971
