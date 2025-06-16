@@ -1,53 +1,134 @@
+[⠊] Compiling...
+No files changed, compilation skipped
+Traces:
+  [7821953] DeployFundme::run()
+    ├─ [0] VM::envAddress("PICA") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::startBroadcast()
+    │   └─ ← [Return] 
+    ├─ [0] VM::readFile("./img/bronze.svg") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [0] VM::readFile("./img/silver.svg") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [0] VM::readFile("./img/gold.svg") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [6352350] → new NftBrabo@0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+    │   └─ ← [Return] 7202 bytes of code
+    ├─ [959239] → new FundMe@0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
+    │   └─ ← [Return] 4677 bytes of code
+    ├─ [22532] NftBrabo::setMinterContract(FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756])
+    │   └─ ← [Stop] 
+    ├─ [0] VM::stopBroadcast()
+    │   └─ ← [Return] 
+    ├─ [0] console::log("\n Deployment Complete!") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("MoodNft:", NftBrabo: [0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A]) [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("FundMe:", FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756]) [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("\n  IMPORTANT: You need to manually transfer PicaTokens to the FundMe contract!") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("    FundMe address:", FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756]) [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("    Recommended amount: 100,000 PCT or more") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("\nTo transfer tokens using MetaMask:") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("1. Open MetaMask and select your account with PicaTokens") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("2. Click on the PicaToken in your assets") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("3. Click 'Send'") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("4. Paste the FundMe address:", FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756]) [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("5. Enter the amount you want to transfer") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("6. Confirm the transaction") [staticcall]
+    │   └─ ← [Stop] 
+    ├─ [0] console::log("\nSave these addresses for future interactions!") [staticcall]
+    │   └─ ← [Stop] 
+    └─ ← [Return] FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756], NftBrabo: [0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A]
+
+
+Script ran successfully.
 
 == Return ==
-0: contract FundMe 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
-1: contract NftBrabo 0xd11E1385dFfe94bCF79D942226420CFd4EbC2693
-brabro token : 0xa7B99dB6E210A5b8acc94D4eD2094886a7037773
+0: contract FundMe 0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
+1: contract NftBrabo 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+PICA_TOKEN: 0xa7B99dB6E210A5b8acc94D4eD2094886a7037773
 
 == Logs ==
   
  Deployment Complete!
-  MoodNft: 0xd11E1385dFfe94bCF79D942226420CFd4EbC2693
-  FundMe: 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+  MoodNft: 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+  FundMe: 0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
   
   IMPORTANT: You need to manually transfer PicaTokens to the FundMe contract!
-      FundMe address: 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+      FundMe address: 0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
       Recommended amount: 100,000 PCT or more
   
 To transfer tokens using MetaMask:
   1. Open MetaMask and select your account with PicaTokens
   2. Click on the PicaToken in your assets
   3. Click 'Send'
-  4. Paste the FundMe address: 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+  4. Paste the FundMe address: 0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
   5. Enter the amount you want to transfer
   6. Confirm the transaction
   
 Save these addresses for future interactions!
 
 ## Setting up 1 EVM.
+==========================
+Simulated On-chain Traces:
+
+  [6352350] → new NftBrabo@0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+    └─ ← [Return] 7202 bytes of code
+
+  [959239] → new FundMe@0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
+    └─ ← [Return] 4677 bytes of code
+
+  [22532] NftBrabo::setMinterContract(FundMe: [0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756])
+    └─ ← [Stop] 
+
 
 ==========================
 
 Chain 11155111
 
-Estimated gas price: 0.00952422 gwei
+Estimated gas price: 0.000500588 gwei
 
 Estimated total gas used for script: 10110135
 
-Estimated amount required: 0.0000962911499697 ETH
+Estimated amount required: 0.00000506101225938 ETH
 
 ==========================
 
-SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet configuration(s) to the previous command. See forge script --help for more.
-
-Transactions saved to: /home/learodri/Brabo-project-forge/foundry-Fundme/broadcast/DeployFundMe.s.sol/11155111/dry-run/run-latest.json
-
-Sensitive values saved to: /home/learodri/Brabo-project-forge/foundry-Fundme/cache/DeployFundMe.s.sol/11155111/dry-run/run-latest.json
-
-
+##### sepolia
+✅  [Success] Hash: 0x4576dc3ea7f6627d22057f08651312cdb663dbf8ab3be738c97a10116f9dc842
+Contract Address: 0xcdDC9342Fb184BcC28b274B3629Ae1a773bf378A
+Block: 8560730
+Paid: 0.000003325507947188 ETH (6643814 gas * 0.000500542 gwei)
 
 
+##### sepolia
+✅  [Success] Hash: 0x79cdb819aeff612b3ce352e7a3de7b3b4310f2d6470260d42a693cc40d3593a6
+Contract Address: 0x2aDbEa927A0f06536439Ed2FD8Ef3Fca51d31756
+Block: 8560733
+Paid: 0.00000054384907665 ETH (1086503 gas * 0.00050055 gwei)
 
+
+##### sepolia
+✅  [Success] Hash: 0x6e08a18a4e0ebefa535aee1de50397f65be2f17dce8fb19722a7583ea1e0e319
+Block: 8560738
+Paid: 0.00000002200596038 ETH (43964 gas * 0.000500545 gwei)
+
+✅ Sequence #1 on sepolia | Total Paid: 0.000003891362984218 ETH (7774281 gas * avg 0.000500545 gwei)
+                                                                                                                                                                  
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
 
 
 
