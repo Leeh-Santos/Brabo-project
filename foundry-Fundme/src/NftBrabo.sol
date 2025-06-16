@@ -45,7 +45,7 @@ contract NftBrabo is ERC721 {
         _;
     }
 
-    constructor(string memory bronzeSvg, string memory silverSvg, string memory goldSvg) ERC721("MoodNft", "MNFT") {
+    constructor(string memory bronzeSvg, string memory silverSvg, string memory goldSvg) ERC721("BraboNft", "BNFT") {
         s_tokenIdCounter = 0;
         s_bronzeSvgUriimage= bronzeSvg;
         s_silverSvgUriimage = silverSvg;
