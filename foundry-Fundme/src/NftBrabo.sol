@@ -159,9 +159,9 @@ contract NftBrabo is ERC721 {
     ) internal override {
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
         
-        // Handle transfer tracking (except for minting/burning)
+        
         if (from != address(0) && to != address(0)) {
-            // Update mappings for transfers
+            
             s_hasNft[from] = false;
             delete s_ownerToTokenId[from];
             
