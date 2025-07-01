@@ -18,6 +18,8 @@ contract FundMe {
     mapping(address => bool) private alreadyReceivedNft;
     mapping(address => bool) private hasFunded;
     address[] private funders;
+    uint256 public totalFunders;
+    uint256 public totalEthFunded;
 
     address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 1 * 10 ** 18;
@@ -58,6 +60,7 @@ contract FundMe {
         }
        
         addressToAmountFunded[msg.sender] += msg.value;
+        totalEthFunded += msg.value;
         addressToAmountFundedInUsd[msg.sender] += ethValueInUsd;
 
         if (alreadyReceivedNft[msg.sender]) {
@@ -68,6 +71,7 @@ contract FundMe {
         if (!hasFunded[msg.sender]) {
             funders.push(msg.sender);       
             hasFunded[msg.sender] = true;
+            totalFunders++;
         }
        
         uint256 contractBalance = picaToken.balanceOf(address(this));
@@ -99,12 +103,7 @@ contract FundMe {
     }
 
     function withdraw() public onlyOwner {
-        /*for (uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
-            address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
-        }
-        funders = new address[](0);*/
-        
+       
         (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
         require(callSuccess, "Call failed");
     }
@@ -159,4 +158,9 @@ contract FundMe {
         uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
         return (ethValueInUsd * PICA_MULTIPLIER) / 1e18;
     }
+
+    function getTotalEthFundedInEth() public view returns (uint256) {
+        return totalEthFunded / 1e18;
+    }
+    
 }

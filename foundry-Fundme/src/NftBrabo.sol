@@ -72,7 +72,7 @@ contract NftBrabo is ERC721 {
     }
 
 
-   function getMoodString(uint256 tokenId) internal view returns (string memory) {
+   function getMoodString(uint256 tokenId) public view returns (string memory) {
         MOOD mood = s_tokenIdtoMood[tokenId];
         if (mood == MOOD.GOLD) return "Gold";
         if (mood == MOOD.SILVER) return "Silver";
