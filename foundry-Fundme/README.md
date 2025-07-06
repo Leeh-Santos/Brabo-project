@@ -139,3 +139,48 @@ ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
 
 
 170119971
+
+
+
+a poupança com um seguro mais barato pode ser superior ao custo do agravamento do spread
+
+contratos onde não houve bonificação ao manter os seguros no banco,
+
+Se este último caso é o seu e quer fazer uma transferência do seguro de vida, o melhor é ponderar as duas situações, que seguro proposto lhe trará mais vantagens e, se for pela poupança, fazer as contas para perceber em qual das situações vai ficar a pagar menos pelo bolo todo, no geral.
+
+
+--****SO VALE A PENA SE FOR MAIS BARATO A PARTIR DE AGORA 27.30
+
+, spread tao foda assim??  mudar de seguro tanka com aumento do spread? 
+ 12 anos  --- +40 reduz metade 
+IF WE SELL IN 12 YEARS FUCK IT not woth it
+
+
+YOU HAVE TO BE REALLY FUCKING OLD TO BE FUCKED UP
+
+
+
+2500 - 4 anos, so para trocar
+
+se for metade - 4 anos 720
+
+PROJECAO 12 ANOS
+
+4800 + 1440 + 1164 = 7404 banco comecando 27 subindo gradual = 3.7402 + 2500 = 6200
+
+se alarme 2500 e se 
+
+27(324) 30(360) 40(480) 50(600) 50(600) 50(600) 50(600) 50(600) 50(600) 50(600) 50(600) 60(720) - 40Y 60(720)
+
+15 15 20 25 25 25 25 25 25 25 25 30 30
+
+DIFERENCIA TEM QUE SER MUITO BOA 2500 E TROCA DE SEGURA
+
+SO SE FOR METADE
+
+
+
+if (half(4x720)){
+  dale;
+}
+

@@ -20,7 +20,7 @@ contract FundMe {
     address[] private funders;
     uint256 public totalFunders;
     uint256 public totalEthFunded;
-
+    
     address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 1 * 10 ** 18;
     
