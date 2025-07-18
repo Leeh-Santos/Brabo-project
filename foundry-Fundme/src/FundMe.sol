@@ -50,7 +50,7 @@ contract FundMe {
         
         // Calculate how much PicaToken to give (2x the ETH value)
         uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
-        uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER;
+        uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER; //MAYBE CHANGE THIS, USER WONT RECEIVE FULL MONEY 
         
         
         if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 10 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
