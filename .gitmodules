@@ -4,3 +4,9 @@
 [submodule "foundry-Fundme/lib/openzeppelin-contracts"]
 	path = foundry-Fundme/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "foundry-Fundme/lib/v3-core"]
+	path = foundry-Fundme/lib/v3-core
+	url = https://github.com/Uniswap/v3-core
+[submodule "foundry-Fundme/lib/v3-periphery"]
+	path = foundry-Fundme/lib/v3-periphery
+	url = https://github.com/Uniswap/v3-periphery
