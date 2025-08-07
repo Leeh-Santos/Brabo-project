@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-// 🎯 RECOMMENDED: Use Uniswap V3 for your first LP integration
-// V3 is mature, well-documented, and perfect for learning
-
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {PriceConverter} from "./PriceConverter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -34,11 +31,12 @@ contract FundMe {
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
     NftBrabo public immutable braboNft;
+
+    // Uniswap V3 specific variables
     IUniswapV3Pool public immutable picaEthPool;
     INonfungiblePositionManager public immutable positionManager;
     ISwapRouter public immutable swapRouter;
     
-    // Updated percentages
     uint256 public constant LP_PERCENTAGE = 10; // 10% goes to LP
     uint256 public constant REWARD_PERCENTAGE = 90; // 90% goes to user
     
@@ -64,6 +62,7 @@ contract FundMe {
         priceFeed = AggregatorV3Interface(_priceFeed);
         picaToken = IERC20(_picaToken);
         braboNft = NftBrabo(_moodNft);
+        
         picaEthPool = IUniswapV3Pool(_picaEthPool);
         positionManager = INonfungiblePositionManager(_positionManager);
         swapRouter = ISwapRouter(_swapRouter);
