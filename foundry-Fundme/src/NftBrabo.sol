@@ -151,6 +151,18 @@ contract NftBrabo is ERC721 {
 
 
     
+    function getUserTier(address user) external view returns (uint256) {
+        if (!s_hasNft[user]) {
+            revert MoodNft__TokenDoesNotExist();
+        }
+
+        uint256 tokenId = s_ownerToTokenId[user];
+        MOOD mood = s_tokenIdtoMood[tokenId];
+
+        return uint256(mood); // Returns 0=Bronze, 1=Silver, 2=Gold
+    }
+
+    
     function _beforeTokenTransfer(
         address from,
         address to,

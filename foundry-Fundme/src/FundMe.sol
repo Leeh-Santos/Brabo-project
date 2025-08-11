@@ -169,7 +169,7 @@ contract FundMe {
         }
     }
 
-    // 🎯 Get NFT tier bonus percentage
+    
     function getNFTTierBonus(address user) internal view returns (uint256) {
         if (!alreadyReceivedNft[user]) {
             return 0; // No NFT, no bonus
