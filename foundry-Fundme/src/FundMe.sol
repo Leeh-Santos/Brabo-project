@@ -107,7 +107,7 @@ contract FundMe {
         }
 
        
-        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 50 * 10 ** 16 && !alreadyReceivedNft[msg.sender]) {
+        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 10 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
             alreadyReceivedNft[msg.sender] = true;
             braboNft.mintNftTo(msg.sender);
             emit NftMinted(msg.sender);
