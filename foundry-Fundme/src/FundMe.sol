@@ -6,7 +6,6 @@ import {PriceConverter} from "./PriceConverter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {NftBrabo} from "./NftBrabo.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {INonfungiblePositionManager} from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 error FundMe__NotOwner();
@@ -26,7 +25,7 @@ contract FundMe {
     uint256 public totalEthFunded;
     
     address private immutable i_owner;
-    uint256 public constant MINIMUM_USD = 1 * 10 ** 18;
+    uint256 public constant MINIMUM_USD = 2 * 10 ** 17;
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
@@ -34,7 +33,6 @@ contract FundMe {
 
     // Uniswap V3 specific variables
     IUniswapV3Pool public immutable picaEthPool;
-    INonfungiblePositionManager public immutable positionManager;
     ISwapRouter public immutable swapRouter;
     
    
@@ -45,10 +43,7 @@ contract FundMe {
     uint256 public constant SILVER_BONUS = 5; // 5% bonus  
     uint256 public constant GOLD_BONUS = 10;  // 10% bonus
     
-    // V3 specific variables (kept for compatibility)
-    uint256 public positionTokenId;
-    int24 public tickLower;
-    int24 public tickUpper;
+    
 
     // 📊 Buyback tracking
     uint256 public totalTokensBought;
@@ -64,23 +59,15 @@ contract FundMe {
         address _picaToken,
         address _moodNft,
         address _picaEthPool,
-        address _positionManager,
         address _swapRouter
     ) {
         i_owner = msg.sender;
         priceFeed = AggregatorV3Interface(_priceFeed);
         picaToken = IERC20(_picaToken);
         braboNft = NftBrabo(_moodNft);
-        
         picaEthPool = IUniswapV3Pool(_picaEthPool);
-        positionManager = INonfungiblePositionManager(_positionManager);
         swapRouter = ISwapRouter(_swapRouter);
-        
-        // Set wide tick range for maximum liquidity coverage (for compatibility)
-        int24 tickSpacing = picaEthPool.tickSpacing();
-        (, int24 currentTick,,,,,) = picaEthPool.slot0();
-        tickLower = currentTick - (tickSpacing * 100);
-        tickUpper = currentTick + (tickSpacing * 100);
+ 
     }
 
     function fund() public payable {
@@ -107,7 +94,7 @@ contract FundMe {
         }
 
        
-        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 10 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
+        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 3 * 10 ** 17 && !alreadyReceivedNft[msg.sender]) {
             alreadyReceivedNft[msg.sender] = true;
             braboNft.mintNftTo(msg.sender);
             emit NftMinted(msg.sender);
@@ -206,12 +193,6 @@ contract FundMe {
         }
     }
 
-    // 🔧 Function to set initial position (kept for compatibility)
-    function setPositionTokenId(uint256 _tokenId, int24 _tickLower, int24 _tickUpper) external onlyOwner {
-        positionTokenId = _tokenId;
-        tickLower = _tickLower;
-        tickUpper = _tickUpper;
-    }
 
     function upgradeTierForUser(address user) external onlyOwner {
         require(alreadyReceivedNft[user], "User doesn't have an NFT");
@@ -300,9 +281,6 @@ contract FundMe {
         return getPicaPriceFromLP();
     }
     
-    function getPositionInfo() external view returns (uint256, int24, int24) {
-        return (positionTokenId, tickLower, tickUpper);
-    }
     
     // 📊 NEW: Get buyback statistics
     function getBuybackStats() external view returns (

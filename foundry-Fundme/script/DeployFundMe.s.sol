@@ -15,7 +15,6 @@ contract DeployFundme is Script {
         address priceFeedAddress = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
 
         // 🚀 Uniswap V3 addresses on Base
-        address positionManager = 0x03a520b32C04BF3bEEf7BF5d7f41323c95B0Fb4; // Base V3 Position Manager
         address swapRouter = 0x2626664c2603336E57B271c5C0b26F421741e481;     // Base V3 Swap Router
         
         // 🎯 YOUR LP POSITION DETAILS - Get from environment variables
@@ -39,7 +38,6 @@ contract DeployFundme is Script {
             picaTokenAddress,    // Your PICA token
             address(braboNft),   // Your NFT contract
             picaEthPool,         // Your V3 pool address
-            positionManager,     // Base V3 Position Manager
             swapRouter           // Base V3 Swap Router
         );
         
@@ -58,7 +56,7 @@ contract DeployFundme is Script {
         console.log(" V3 Integration:");
         console.log("   PICA Token:", picaTokenAddress);
         console.log("   Pool Address:", picaEthPool);
-        console.log("   Position Manager:", positionManager);
+   
         console.log("   Swap Router:", swapRouter);
       
         

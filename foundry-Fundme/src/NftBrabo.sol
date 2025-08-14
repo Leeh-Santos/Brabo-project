@@ -88,11 +88,11 @@ contract NftBrabo is ERC721 {
         uint256 tokenId = s_ownerToTokenId[user];
         
         MOOD newTier;
-        uint256 fundingInDollars = fundingAmountUsd / 1e18;
+        //uint256 fundingInDollars = fundingAmountUsd / 1e18;
         
-        if (fundingInDollars >= 1000) {
+        if (fundingAmountUsd >= 4 * 10 ** 17) {
             newTier = MOOD.GOLD;
-        } else if (fundingInDollars >= 100) {
+        } else if (fundingAmountUsd >= 5 * 10 ** 17) {
             newTier = MOOD.SILVER;
         } else {
             newTier = MOOD.BRONZE;
@@ -181,4 +181,5 @@ contract NftBrabo is ERC721 {
             s_ownerToTokenId[to] = tokenId;
         }
     }
+
 }

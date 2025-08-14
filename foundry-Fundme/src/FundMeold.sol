@@ -22,7 +22,7 @@ contract FundMe {
     uint256 public totalEthFunded;
     
     address private immutable i_owner;
-    uint256 public constant MINIMUM_USD = 1 * 10 ** 18;
+    uint256 public constant MINIMUM_USD = 2 * 10 ** 7;
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
@@ -53,7 +53,7 @@ contract FundMe {
         uint256 picaTokenAmount = ethValueInUsd * PICA_MULTIPLIER; //MAYBE CHANGE THIS, USER WONT RECEIVE FULL MONEY 
         
         
-        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 10 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
+        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 5 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
             alreadyReceivedNft[msg.sender] = true;
             braboNft.mintNftTo(msg.sender);
             emit NftMinted(msg.sender);
