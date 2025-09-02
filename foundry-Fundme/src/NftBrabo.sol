@@ -90,9 +90,9 @@ contract NftBrabo is ERC721 {
         MOOD newTier;
         //uint256 fundingInDollars = fundingAmountUsd / 1e18;
         
-        if (fundingAmountUsd >= 4 * 10 ** 17) {
+        if (fundingAmountUsd >= 5 * 10 ** 17) {
             newTier = MOOD.GOLD;
-        } else if (fundingAmountUsd >= 5 * 10 ** 17) {
+        } else if (fundingAmountUsd >= 4 * 10 ** 17) {
             newTier = MOOD.SILVER;
         } else {
             newTier = MOOD.BRONZE;
@@ -107,7 +107,8 @@ contract NftBrabo is ERC721 {
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+
 
         string memory imageURI;
 
@@ -163,23 +164,21 @@ contract NftBrabo is ERC721 {
     }
 
     
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal override {
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 tokenId,
+    uint256 batchSize
+) internal override {
+    super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    
+    if (from != address(0) && to != address(0)) {
+        s_hasNft[from] = false;
+        delete s_ownerToTokenId[from];
         
-        
-        if (from != address(0) && to != address(0)) {
-            
-            s_hasNft[from] = false;
-            delete s_ownerToTokenId[from];
-            
-            s_hasNft[to] = true;
-            s_ownerToTokenId[to] = tokenId;
-        }
+        s_hasNft[to] = true;
+        s_ownerToTokenId[to] = tokenId;
     }
+}
 
 }

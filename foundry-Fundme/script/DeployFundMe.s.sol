@@ -14,9 +14,9 @@ contract DeployFundme is Script {
         // Base network ETH/USD price feed
         address priceFeedAddress = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
 
-        // 🚀 Uniswap V3 addresses on Base
+        // 🚀 Uniswap V3 addresses on Base network
         address swapRouter = 0x2626664c2603336E57B271c5C0b26F421741e481;     // Base V3 Swap Router
-        
+        address positionManager = 0x03a520b32C04BF3bEEf7BF5d56831fcB7e84f141;  // Co   
         // 🎯 YOUR LP POSITION DETAILS - Get from environment variables
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
     
@@ -32,13 +32,14 @@ contract DeployFundme is Script {
             svgToImageUri(goldSvg)
         );
 
-        // 🆕 Deploy NEW FundMe with 6 parameters (removed position-specific params)
+        // 🆕 Deploy NEW FundMe with 6 parameters including Position Manager
         FundMe fundMe = new FundMe(
             priceFeedAddress,    // Chainlink ETH/USD feed
             picaTokenAddress,    // Your PICA token
             address(braboNft),   // Your NFT contract
             picaEthPool,         // Your V3 pool address
-            swapRouter           // Base V3 Swap Router
+            swapRouter,          // Base V3 Swap Router
+            positionManager      // Base V3 Position Manager (NEW!)
         );
         
         // Setup NFT minter
@@ -46,21 +47,24 @@ contract DeployFundme is Script {
         
         vm.stopBroadcast();
         
-    
-  
-        
-        console.log(" Contract Addresses:");
-        console.log("   NftBrabo:", address(braboNft));
-        console.log("   FundMe:", address(fundMe));
-        console.log("");
-        console.log(" V3 Integration:");
-        console.log("   PICA Token:", picaTokenAddress);
-        console.log("   Pool Address:", picaEthPool);
-   
-        console.log("   Swap Router:", swapRouter);
       
-        
-        
+        console.log(" Contract Addresses:");
+        console.log("   NftBrabo:       ", address(braboNft));
+        console.log("   FundMe:         ", address(fundMe));
+        console.log("");
+     
+        console.log("");
+        console.log("  Mechanism Settings:");
+        console.log("   Buyback:        80%");
+        console.log("   Liquidity:      20%");
+        console.log("   Price Feed:     ", priceFeedAddress);
+        console.log("");
+        console.log(" Next Steps:");
+        console.log("   1. Fund contract with PICA tokens");
+        console.log("   2. Verify contracts on BaseScan");
+        console.log("   3. Test with small funding amount");
+        console.log("=================================================");
+          
         return (fundMe, braboNft);
     }
 
