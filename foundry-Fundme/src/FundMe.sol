@@ -168,79 +168,68 @@ contract FundMe {
         }
     }
 
-    // 💧 NEW: Add liquidity to the pool
-    function addLiquidityToPool(uint256 ethAmount) internal {
-        if (ethAmount == 0) return;
+//  Add liquidity to the pool
+function addLiquidityToPool(uint256 ethAmount) internal {
+    if (ethAmount == 0) return;
+    
+    // Calculate required PICA tokens
+    uint256 picaTokensNeeded = _calculatePicaTokensNeeded(ethAmount);
+    if (picaTokensNeeded == 0) return;
+    
+    // Approve and mint liquidity position
+    picaToken.approve(address(positionManager), picaTokensNeeded);
+    _mintLiquidityPosition(ethAmount, picaTokensNeeded);
+}
+
+// Helper function to calculate PICA tokens needed for liquidity
+function _calculatePicaTokensNeeded(uint256 ethAmount) private view returns (uint256) {
+    uint256 currentPrice = getPicaPriceFromLP();
+    uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
+    uint256 picaTokensNeeded = ethValueInUsd / currentPrice;
+    
+    // Check contract balance and adjust if necessary
+    uint256 contractBalance = picaToken.balanceOf(address(this));
+    return contractBalance < picaTokensNeeded ? contractBalance : picaTokensNeeded;
+}
+
+// Helper function to mint liquidity position
+function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
+    // Get token ordering
+    address token0 = picaEthPool.token0();
+    bool picaIsToken0 = token0 == address(picaToken);
+    
+    // Get tick parameters
+    int24 tickSpacing = picaEthPool.tickSpacing();
+    (, int24 currentTick,,,,,) = picaEthPool.slot0();
+    
+    // Create mint parameters
+    INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+        token0: token0,
+        token1: picaEthPool.token1(),
+        fee: picaEthPool.fee(),
+        tickLower: ((currentTick / tickSpacing) - 100) * tickSpacing,
+        tickUpper: ((currentTick / tickSpacing) + 100) * tickSpacing,
+        amount0Desired: picaIsToken0 ? picaTokensNeeded : ethAmount,
+        amount1Desired: picaIsToken0 ? ethAmount : picaTokensNeeded,
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: address(this),
+        deadline: block.timestamp + 300
+    });
+    
+    try positionManager.mint{value: ethAmount}(params) 
+        returns (uint256 tokenId, uint128, uint256, uint256) {
         
-        // Calculate how many PICA tokens we need for liquidity
-        uint256 currentPrice = getPicaPriceFromLP();
-        uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
-        uint256 picaTokensNeeded = ethValueInUsd / currentPrice;
+        // Update statistics
+        totalEthUsedForLiquidity += ethAmount;
+        totalTokensAddedToLiquidity += picaTokensNeeded;
         
-        // Check if contract has enough PICA tokens for liquidity
-        uint256 contractBalance = picaToken.balanceOf(address(this));
-        if (contractBalance < picaTokensNeeded) {
-            // If not enough PICA tokens, use all available balance
-            picaTokensNeeded = contractBalance;
-        }
+        emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
         
-        if (picaTokensNeeded == 0) return;
-        
-        // Approve position manager to spend PICA tokens
-        picaToken.approve(address(positionManager), picaTokensNeeded);
-        
-        // Determine token order (token0 and token1)
-        address token0 = picaEthPool.token0();
-        address token1 = picaEthPool.token1();
-        
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        
-        if (token0 == address(picaToken)) {
-            // PICA is token0, ETH is token1
-            amount0Desired = picaTokensNeeded;
-            amount1Desired = ethAmount;
-        } else {
-            // ETH is token0, PICA is token1
-            amount0Desired = ethAmount;
-            amount1Desired = picaTokensNeeded;
-        }
-        
-        // Get pool tick spacing and current tick
-        int24 tickSpacing = picaEthPool.tickSpacing();
-        (, int24 currentTick,,,,,) = picaEthPool.slot0();
-        
-        // Set tick range (you can adjust this range based on your strategy)
-        int24 tickLower = (currentTick / tickSpacing - 100) * tickSpacing;
-        int24 tickUpper = (currentTick / tickSpacing + 100) * tickSpacing;
-        
-        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
-            token0: token0,
-            token1: token1,
-            fee: picaEthPool.fee(),
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            amount0Desired: amount0Desired,
-            amount1Desired: amount1Desired,
-            amount0Min: 0, // Accept any amount
-            amount1Min: 0, // Accept any amount
-            recipient: address(this), // Contract owns the LP position
-            deadline: block.timestamp + 300
-        });
-        
-        try positionManager.mint{value: ethAmount}(params) 
-            returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
-            
-            // Update liquidity statistics
-            totalEthUsedForLiquidity += ethAmount;
-            totalTokensAddedToLiquidity += picaTokensNeeded;
-            
-            emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
-            
-        } catch {
-            revert FundMe__LiquidityAdditionFailed();
-        }
+    } catch {
+        revert FundMe__LiquidityAdditionFailed();
     }
+}
     
     function getNFTTierBonus(address user) internal view returns (uint256) {
         if (!alreadyReceivedNft[user]) {

@@ -16,7 +16,7 @@ contract DeployFundme is Script {
 
         // 🚀 Uniswap V3 addresses on Base network
         address swapRouter = 0x2626664c2603336E57B271c5C0b26F421741e481;     // Base V3 Swap Router
-        address positionManager = 0x03a520b32C04BF3bEEf7BF5d56831fcB7e84f141;  // Co   
+        address positionManager = 0x03a520b32c04bf3beEF7bF5d56831fcB7e84f141;
         // 🎯 YOUR LP POSITION DETAILS - Get from environment variables
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
     

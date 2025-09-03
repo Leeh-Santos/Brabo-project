@@ -163,14 +163,8 @@ contract NftBrabo is ERC721 {
         return uint256(mood); // Returns 0=Bronze, 1=Silver, 2=Gold
     }
 
-    
-function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 tokenId,
-    uint256 batchSize
-) internal override {
-    super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
+    address from = _ownerOf(tokenId);
     
     if (from != address(0) && to != address(0)) {
         s_hasNft[from] = false;
@@ -179,6 +173,8 @@ function _beforeTokenTransfer(
         s_hasNft[to] = true;
         s_ownerToTokenId[to] = tokenId;
     }
-}
+    
+    return super._update(to, tokenId, auth);    
+    }
 
 }
