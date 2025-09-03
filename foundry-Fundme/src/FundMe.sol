@@ -14,9 +14,13 @@ error FundMe__InsufficientTokenBalance();
 error FundMe__TokenTransferFailed();
 error FundMe__BuybackFailed();
 error FundMe__LiquidityAdditionFailed();
+error FundMe__SlippageExceeded();
 
 contract FundMe {
     using PriceConverter for uint256;
+
+    // Base network WETH address
+    address constant WETH = 0x4200000000000000000000000000000000000006;
 
     mapping(address => uint256) private addressToAmountFunded;
     mapping(address => uint256) private addressToAmountFundedInUsd;
@@ -38,26 +42,33 @@ contract FundMe {
     ISwapRouter public immutable swapRouter;
     INonfungiblePositionManager public immutable positionManager;
     
-    // 📊 NEW: Split percentages
+    // Split percentages
     uint256 public constant BUYBACK_PERCENTAGE = 80; // 80% for buybacks
     uint256 public constant LIQUIDITY_PERCENTAGE = 20; // 20% for liquidity addition
+    uint256 public constant MAX_SLIPPAGE = 500; // 5% max slippage (500 basis points)
     
-    //  NFT Tier Bonuses
+    // NFT Tier Bonuses
     uint256 public constant BRONZE_BONUS = 2; // 2% bonus
     uint256 public constant SILVER_BONUS = 5; // 5% bonus  
     uint256 public constant GOLD_BONUS = 10;  // 10% bonus
     
-    // 📊 Tracking variables
+    // Tracking variables
     uint256 public totalTokensBought;
     uint256 public totalEthUsedForBuyback;
     uint256 public totalEthUsedForLiquidity;
     uint256 public totalTokensAddedToLiquidity;
+
+    // Emergency pause mechanism
+    bool public paused = false;
 
     event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded, uint256 bonusPercentage);
     event NftMinted(address indexed recipient);
     event TierUpgraded(address indexed user, uint256 totalFundingUsd);
     event TokensBought(uint256 ethSpent, uint256 picaTokensBought, uint256 newPrice);
     event LiquidityAdded(uint256 ethAmount, uint256 picaAmount, uint256 tokenId);
+    event SwapFailed(address indexed user, uint256 ethAmount, string reason);
+    event BuybackFailed(address indexed user, uint256 ethAmount);
+    event LiquidityFailed(address indexed user, uint256 ethAmount);
 
     constructor(
         address _priceFeed, 
@@ -76,35 +87,64 @@ contract FundMe {
         positionManager = INonfungiblePositionManager(_positionManager);
     }
 
-    function fund() public payable {
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != i_owner) revert FundMe__NotOwner();
+        _;
+    }
+
+    function fund() public payable whenNotPaused {
         require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
         
         uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
-        
-        // 📊 STEP 1: Split ETH between buyback and liquidity
         uint256 buybackEth = (msg.value * BUYBACK_PERCENTAGE) / 100;
         uint256 liquidityEth = (msg.value * LIQUIDITY_PERCENTAGE) / 100;
         
-        // 🎯 STEP 2: Execute buyback with 80% of ETH
-        uint256 tokensBought = buyTokensFromLP(buybackEth);
+        uint256 tokensBought = 0;
         
-        // 💧 STEP 3: Add liquidity with 20% of ETH
-        addLiquidityToPool(liquidityEth);
+        // Try buyback with error handling
+        try this.buyTokensFromLPExternal(buybackEth) returns (uint256 tokens) {
+            tokensBought = tokens;
+        } catch Error(string memory) {
+            emit BuybackFailed(msg.sender, buybackEth);
+            // Continue execution - don't fail entire transaction
+        } catch {
+            emit BuybackFailed(msg.sender, buybackEth);
+        }
         
-        // 🎯 STEP 4: Calculate NFT tier bonus
+        // Try liquidity addition with error handling
+        try this.addLiquidityToPoolExternal(liquidityEth) {
+            // Success - event emitted in function
+        } catch Error(string memory ) {
+            emit LiquidityFailed(msg.sender, liquidityEth);
+        } catch {
+            emit LiquidityFailed(msg.sender, liquidityEth);
+        }
+        
+        // Calculate NFT tier bonus
         uint256 bonusPercentage = getNFTTierBonus(msg.sender);
         uint256 bonusTokens = (tokensBought * bonusPercentage) / 100;
         uint256 totalUserTokens = tokensBought + bonusTokens;
         
-        // 🎁 STEP 5: Transfer tokens to user (bought tokens + bonus)
-        uint256 contractBalance = picaToken.balanceOf(address(this));
-        if (contractBalance < totalUserTokens) {
-            revert FundMe__InsufficientTokenBalance();
-        }
-        
-        bool success = picaToken.transfer(msg.sender, totalUserTokens);
-        if (!success) {
-            revert FundMe__TokenTransferFailed();
+        // Transfer tokens to user if any were bought
+        if (totalUserTokens > 0) {
+            uint256 contractBalance = picaToken.balanceOf(address(this));
+            if (contractBalance >= totalUserTokens) {
+                bool success = picaToken.transfer(msg.sender, totalUserTokens);
+                if (!success) {
+                    revert FundMe__TokenTransferFailed();
+                }
+            } else {
+                // Transfer what we have
+                if (contractBalance > 0) {
+                    picaToken.transfer(msg.sender, contractBalance);
+                }
+                revert FundMe__InsufficientTokenBalance();
+            }
         }
 
         // NFT minting logic
@@ -135,151 +175,173 @@ contract FundMe {
         emit Funded(msg.sender, msg.value, totalUserTokens, bonusPercentage);
     }
 
+    // External wrapper for try/catch
+    function buyTokensFromLPExternal(uint256 ethAmount) external returns (uint256) {
+        require(msg.sender == address(this), "Only self");
+        return buyTokensFromLP(ethAmount);
+    }
+
     function buyTokensFromLP(uint256 ethAmount) internal returns (uint256 tokensBought) {
         if (ethAmount == 0) return 0;
         
+        // Calculate expected output and minimum with slippage protection
+        uint256 currentPrice = getPicaPriceFromLP();
+        if (currentPrice == 0) return 0;
+        
+        uint256 expectedTokensOut = (ethAmount * 1e18) / currentPrice;
+        uint256 minAmountOut = (expectedTokensOut * (10000 - MAX_SLIPPAGE)) / 10000;
+        
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: address(0), // ETH (automatically wrapped to WETH)
+            tokenIn: WETH,
             tokenOut: address(picaToken),
             fee: picaEthPool.fee(),
-            recipient: address(this), // Contract receives the PICA tokens
+            recipient: address(this),
             deadline: block.timestamp + 300,
             amountIn: ethAmount,
-            amountOutMinimum: 0, // Accept any amount of tokens out
-            sqrtPriceLimitX96: 0 // No price limit
+            amountOutMinimum: minAmountOut,
+            sqrtPriceLimitX96: 0
         });
         
         try swapRouter.exactInputSingle{value: ethAmount}(params) 
             returns (uint256 amountOut) {
             
-            // Update buyback statistics
             totalTokensBought += amountOut;
             totalEthUsedForBuyback += ethAmount;
             
-            // Get new price after buyback
             uint256 newPrice = getPicaPriceFromLP();
-            
             emit TokensBought(ethAmount, amountOut, newPrice);
             
             return amountOut;
             
+        } catch Error(string memory reason) {
+            emit SwapFailed(msg.sender, ethAmount, reason);
+            revert FundMe__BuybackFailed();
         } catch {
             revert FundMe__BuybackFailed();
         }
     }
 
-//  Add liquidity to the pool
-function addLiquidityToPool(uint256 ethAmount) internal {
-    if (ethAmount == 0) return;
-    
-    // Calculate required PICA tokens
-    uint256 picaTokensNeeded = _calculatePicaTokensNeeded(ethAmount);
-    if (picaTokensNeeded == 0) return;
-    
-    // Approve and mint liquidity position
-    picaToken.approve(address(positionManager), picaTokensNeeded);
-    _mintLiquidityPosition(ethAmount, picaTokensNeeded);
-}
-
-// Helper function to calculate PICA tokens needed for liquidity
-function _calculatePicaTokensNeeded(uint256 ethAmount) private view returns (uint256) {
-    uint256 currentPrice = getPicaPriceFromLP();
-    uint256 ethValueInUsd = ethAmount.getConversionRate(priceFeed);
-    uint256 picaTokensNeeded = ethValueInUsd / currentPrice;
-    
-    // Check contract balance and adjust if necessary
-    uint256 contractBalance = picaToken.balanceOf(address(this));
-    return contractBalance < picaTokensNeeded ? contractBalance : picaTokensNeeded;
-}
-
-// Helper function to mint liquidity position
-function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
-    // Get token ordering
-    address token0 = picaEthPool.token0();
-    bool picaIsToken0 = token0 == address(picaToken);
-    
-    // Get tick parameters
-    int24 tickSpacing = picaEthPool.tickSpacing();
-    (, int24 currentTick,,,,,) = picaEthPool.slot0();
-    
-    // Create mint parameters
-    INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
-        token0: token0,
-        token1: picaEthPool.token1(),
-        fee: picaEthPool.fee(),
-        tickLower: ((currentTick / tickSpacing) - 100) * tickSpacing,
-        tickUpper: ((currentTick / tickSpacing) + 100) * tickSpacing,
-        amount0Desired: picaIsToken0 ? picaTokensNeeded : ethAmount,
-        amount1Desired: picaIsToken0 ? ethAmount : picaTokensNeeded,
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: address(this),
-        deadline: block.timestamp + 300
-    });
-    
-    try positionManager.mint{value: ethAmount}(params) 
-        returns (uint256 tokenId, uint128, uint256, uint256) {
-        
-        // Update statistics
-        totalEthUsedForLiquidity += ethAmount;
-        totalTokensAddedToLiquidity += picaTokensNeeded;
-        
-        emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
-        
-    } catch {
-        revert FundMe__LiquidityAdditionFailed();
+    // External wrapper for try/catch
+    function addLiquidityToPoolExternal(uint256 ethAmount) external {
+        require(msg.sender == address(this), "Only self");
+        addLiquidityToPool(ethAmount);
     }
-}
+
+    function addLiquidityToPool(uint256 ethAmount) internal {
+        if (ethAmount == 0) return;
+        
+        uint256 picaTokensNeeded = _calculatePicaTokensNeeded(ethAmount);
+        if (picaTokensNeeded == 0) return;
+        
+        // Approve tokens
+        picaToken.approve(address(positionManager), picaTokensNeeded);
+        _mintLiquidityPosition(ethAmount, picaTokensNeeded);
+    }
+
+    function _calculatePicaTokensNeeded(uint256 ethAmount) private view returns (uint256) {
+        uint256 currentPrice = getPicaPriceFromLP();
+        if (currentPrice == 0) return 0;
+        
+        uint256 picaTokensNeeded = (ethAmount * 1e18) / currentPrice;
+        
+        uint256 contractBalance = picaToken.balanceOf(address(this));
+        return contractBalance < picaTokensNeeded ? contractBalance : picaTokensNeeded;
+    }
+
+    function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
+        address token0 = picaEthPool.token0();
+        bool picaIsToken0 = token0 == address(picaToken);
+        
+        int24 tickSpacing = picaEthPool.tickSpacing();
+        (, int24 currentTick,,,,,) = picaEthPool.slot0();
+        
+        // Create wider tick range for better liquidity provision
+        int24 tickLower = ((currentTick / tickSpacing) - 200) * tickSpacing;
+        int24 tickUpper = ((currentTick / tickSpacing) + 200) * tickSpacing;
+        
+        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+            token0: token0,
+            token1: picaEthPool.token1(),
+            fee: picaEthPool.fee(),
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            amount0Desired: picaIsToken0 ? picaTokensNeeded : ethAmount,
+            amount1Desired: picaIsToken0 ? ethAmount : picaTokensNeeded,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 300
+        });
+        
+        try positionManager.mint{value: ethAmount}(params) 
+            returns (uint256 tokenId, uint128, uint256, uint256) {
+            
+            totalEthUsedForLiquidity += ethAmount;
+            totalTokensAddedToLiquidity += picaTokensNeeded;
+            
+            emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
+            
+        } catch Error(string memory) {
+            revert FundMe__LiquidityAdditionFailed();
+        } catch {
+            revert FundMe__LiquidityAdditionFailed();
+        }
+    }
     
     function getNFTTierBonus(address user) internal view returns (uint256) {
         if (!alreadyReceivedNft[user]) {
-            return 0; // No NFT, no bonus
+            return 0;
         }
         
-        // Get user's NFT tier from NftBrabo contract
         try braboNft.getUserTier(user) returns (uint256 tier) {
-            if (tier == 0) return BRONZE_BONUS; // Bronze = 2%
-            if (tier == 1) return SILVER_BONUS; // Silver = 5%
-            if (tier == 2) return GOLD_BONUS;   // Gold = 10%
-            return 0; // Unknown tier
+            if (tier == 0) return BRONZE_BONUS;
+            if (tier == 1) return SILVER_BONUS;
+            if (tier == 2) return GOLD_BONUS;
+            return 0;
         } catch {
-            return 0; // Error getting tier
+            return 0;
         }
     }
 
-    // 🔍 Get current PICA price from LP
     function getPicaPriceFromLP() internal view returns (uint256) {
-        (uint160 sqrtPriceX96,,,,,,) = picaEthPool.slot0();
-        
-        // Convert sqrtPriceX96 to actual price
-        uint256 price = uint256(sqrtPriceX96) * uint256(sqrtPriceX96) / (2**192);
-        
-        // Adjust for token decimals and determine which token is token0
-        address token0 = picaEthPool.token0();
-        uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
-        
-        if (token0 == address(picaToken)) {
-            // PICA is token0, ETH is token1
-            return price == 0 ? 1e18 : (ethPriceInUsd * (2**192)) / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96));
-        } else {
-            // ETH is token0, PICA is token1
-            return price == 0 ? 1e18 : (ethPriceInUsd) / price;
+        try picaEthPool.slot0() returns (
+            uint160 sqrtPriceX96,
+            int24,
+            uint16,
+            uint16,
+            uint16,
+            uint8,
+            bool
+        ) {
+            if (sqrtPriceX96 == 0) return 1e18; // Fallback price
+            
+            // Convert sqrtPriceX96 to price
+            uint256 price = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192;
+            
+            address token0 = picaEthPool.token0();
+            uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
+            
+            if (token0 == address(picaToken)) {
+                // PICA is token0, price is PICA per ETH, we want USD per PICA
+                return price > 0 ? (ethPriceInUsd / price) : 1e18;
+            } else {
+                // ETH is token0, price is ETH per PICA, we want USD per PICA
+                return (price * ethPriceInUsd) / 1e18;
+            }
+        } catch {
+            return 1e18; // Fallback price if pool read fails
         }
     }
 
+    // Admin functions
     function upgradeTierForUser(address user) external onlyOwner {
         require(alreadyReceivedNft[user], "User doesn't have an NFT");
         braboNft.upgradeTierBasedOnFunding(user, addressToAmountFundedInUsd[user]);
         emit TierUpgraded(user, addressToAmountFundedInUsd[user]);
     }
 
-    function getVersion() public view returns (uint256) {
-        return priceFeed.version();
-    }
-
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert FundMe__NotOwner();
-        _;
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
     }
 
     function withdraw() public onlyOwner {
@@ -298,15 +360,29 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
         require(success, "Token deposit failed");
     }
 
-    fallback() external payable {
+    // Emergency rescue functions
+    function rescueStuckETH() external onlyOwner {
+        payable(i_owner).transfer(address(this).balance);
+    }
+
+    function rescueStuckTokens(address tokenAddress) external onlyOwner {
+        IERC20 token = IERC20(tokenAddress);
+        token.transfer(i_owner, token.balanceOf(address(this)));
+    }
+
+    fallback() external payable whenNotPaused {
         fund();
     }
 
-    receive() external payable {
+    receive() external payable whenNotPaused {
         fund();
     }
 
-    // 📊 View functions
+    // View functions
+    function getVersion() public view returns (uint256) {
+        return priceFeed.version();
+    }
+
     function getHowMuchDudeFunded(address _address) external view returns (uint256) {
         return addressToAmountFunded[_address];
     }
@@ -331,15 +407,11 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
         return picaToken.balanceOf(address(this));
     }
     
-    // 🎯 Calculate user rewards with NFT bonus
     function calculateUserReward(address user, uint256 ethAmount) external view returns (uint256 baseTokens, uint256 bonusTokens, uint256 totalTokens) {
-        // Only 80% of ETH is used for buyback
         uint256 buybackEth = (ethAmount * BUYBACK_PERCENTAGE) / 100;
-        uint256 ethValueInUsd = buybackEth.getConversionRate(priceFeed);
         uint256 currentPicaPrice = getPicaPriceFromLP();
-        baseTokens = ethValueInUsd / currentPicaPrice;
+        baseTokens = currentPicaPrice > 0 ? (buybackEth * 1e18) / currentPicaPrice : 0;
         
-        // Calculate bonus
         uint256 bonusPercentage = getNFTTierBonus(user);
         bonusTokens = (baseTokens * bonusPercentage) / 100;
         totalTokens = baseTokens + bonusTokens;
@@ -355,7 +427,6 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
         return getPicaPriceFromLP();
     }
     
-    // 📊 NEW: Enhanced statistics with liquidity tracking
     function getBuybackStats() external view returns (
         uint256 totalBought,
         uint256 totalEthSpent,
@@ -394,7 +465,6 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
         );
     }
     
-    // 🎯 Get user's NFT tier bonus
     function getUserTierBonus(address user) external view returns (uint256 bonusPercentage, string memory tierName) {
         bonusPercentage = getNFTTierBonus(user);
         
