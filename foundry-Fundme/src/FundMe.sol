@@ -61,7 +61,7 @@ contract FundMe {
     // Emergency pause mechanism
     bool public paused = false;
 
-    event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded, uint256 bonusPercentage);
+    event Funded(address indexed funder, uint256 ethAmount, uint256 picaTokensAwarded, uint256 bonusPercentage, uint256 liquidityCompensation);
     event NftMinted(address indexed recipient);
     event TierUpgraded(address indexed user, uint256 totalFundingUsd);
     event TokensBought(uint256 ethSpent, uint256 picaTokensBought, uint256 newPrice);
@@ -96,84 +96,94 @@ contract FundMe {
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
     }
-
-    function fund() public payable whenNotPaused {
-        require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
-        
-        uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
-        uint256 buybackEth = (msg.value * BUYBACK_PERCENTAGE) / 100;
-        uint256 liquidityEth = (msg.value * LIQUIDITY_PERCENTAGE) / 100;
-        
-        uint256 tokensBought = 0;
-        
-        // Try buyback with error handling
-        try this.buyTokensFromLPExternal(buybackEth) returns (uint256 tokens) {
-            tokensBought = tokens;
-        } catch Error(string memory) {
-            emit BuybackFailed(msg.sender, buybackEth);
-            // Continue execution - don't fail entire transaction
-        } catch {
-            emit BuybackFailed(msg.sender, buybackEth);
-        }
-        
-        // Try liquidity addition with error handling
-        try this.addLiquidityToPoolExternal(liquidityEth) {
-            // Success - event emitted in function
-        } catch Error(string memory ) {
-            emit LiquidityFailed(msg.sender, liquidityEth);
-        } catch {
-            emit LiquidityFailed(msg.sender, liquidityEth);
-        }
-        
-        // Calculate NFT tier bonus
-        uint256 bonusPercentage = getNFTTierBonus(msg.sender);
-        uint256 bonusTokens = (tokensBought * bonusPercentage) / 100;
-        uint256 totalUserTokens = tokensBought + bonusTokens;
-        
-        // Transfer tokens to user if any were bought
-        if (totalUserTokens > 0) {
-            uint256 contractBalance = picaToken.balanceOf(address(this));
-            if (contractBalance >= totalUserTokens) {
-                bool success = picaToken.transfer(msg.sender, totalUserTokens);
-                if (!success) {
-                    revert FundMe__TokenTransferFailed();
-                }
-            } else {
-                // Transfer what we have
-                if (contractBalance > 0) {
-                    picaToken.transfer(msg.sender, contractBalance);
-                }
-                revert FundMe__InsufficientTokenBalance();
-            }
-        }
-
-        // NFT minting logic
-        if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 3 * 10 ** 17 && !alreadyReceivedNft[msg.sender]) {
-            alreadyReceivedNft[msg.sender] = true;
-            braboNft.mintNftTo(msg.sender);
-            emit NftMinted(msg.sender);
-        }
-       
-        // Update funding records
-        addressToAmountFunded[msg.sender] += msg.value;
-        totalEthFunded += msg.value;
-        addressToAmountFundedInUsd[msg.sender] += ethValueInUsd;
-
-        // Tier upgrade logic
-        if (alreadyReceivedNft[msg.sender]) {
-            braboNft.upgradeTierBasedOnFunding(msg.sender, addressToAmountFundedInUsd[msg.sender]);
-            emit TierUpgraded(msg.sender, addressToAmountFundedInUsd[msg.sender]);
-        }
-
-        // Track new funders
-        if (!hasFunded[msg.sender]) {
-            funders.push(msg.sender);       
-            hasFunded[msg.sender] = true;
-            totalFunders++;
-        }
-
-        emit Funded(msg.sender, msg.value, totalUserTokens, bonusPercentage);
+function fund() public payable whenNotPaused {
+    require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
+    
+    uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
+    uint256 buybackEth = (msg.value * BUYBACK_PERCENTAGE) / 100;
+    uint256 liquidityEth = (msg.value * LIQUIDITY_PERCENTAGE) / 100;
+    
+    uint256 tokensBought = 0;
+    
+    // Try buyback with error handling
+    try this.buyTokensFromLPExternal(buybackEth) returns (uint256 tokens) {
+        tokensBought = tokens;
+    } catch Error(string memory) {
+        emit BuybackFailed(msg.sender, buybackEth);
+        // Continue execution - don't fail entire transaction
+    } catch {
+        emit BuybackFailed(msg.sender, buybackEth);
     }
+    
+    // Try liquidity addition with error handling
+    try this.addLiquidityToPoolExternal(liquidityEth) {
+        // Success - event emitted in function
+    } catch Error(string memory ) {
+        emit LiquidityFailed(msg.sender, liquidityEth);
+    } catch {
+        emit LiquidityFailed(msg.sender, liquidityEth);
+    }
+    
+    // Calculate NFT tier bonus
+    uint256 bonusPercentage = getNFTTierBonus(msg.sender);
+    uint256 bonusTokens = (tokensBought * bonusPercentage) / 100;
+    
+    // 🆕 ADD LIQUIDITY COMPENSATION
+    uint256 liquidityValueInUsd = liquidityEth.getConversionRate(priceFeed);
+    uint256 currentPicaPrice = getPicaPriceFromLP();
+    uint256 liquidityCompensationTokens = 0;
+    
+    if (currentPicaPrice > 0) {
+        liquidityCompensationTokens = (liquidityValueInUsd * 1e18) / currentPicaPrice;
+    }
+    
+    // 🆕 TOTAL USER TOKENS = Buyback + NFT Bonus + Liquidity Compensation
+    uint256 totalUserTokens = tokensBought + bonusTokens + liquidityCompensationTokens;
+    
+    // Transfer tokens to user if any were bought
+    if (totalUserTokens > 0) {
+        uint256 contractBalance = picaToken.balanceOf(address(this));
+        if (contractBalance >= totalUserTokens) {
+            bool success = picaToken.transfer(msg.sender, totalUserTokens);
+            if (!success) {
+                revert FundMe__TokenTransferFailed();
+            }
+        } else {
+            // Transfer what we have
+            if (contractBalance > 0) {
+                picaToken.transfer(msg.sender, contractBalance);
+            }
+            revert FundMe__InsufficientTokenBalance();
+        }
+    }
+
+    // NFT minting logic
+    if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 3 * 10 ** 17 && !alreadyReceivedNft[msg.sender]) {
+        alreadyReceivedNft[msg.sender] = true;
+        braboNft.mintNftTo(msg.sender);
+        emit NftMinted(msg.sender);
+    }
+    
+    // Update funding records
+    addressToAmountFunded[msg.sender] += msg.value;
+    totalEthFunded += msg.value;
+    addressToAmountFundedInUsd[msg.sender] += ethValueInUsd;
+
+    // Tier upgrade logic
+    if (alreadyReceivedNft[msg.sender]) {
+        braboNft.upgradeTierBasedOnFunding(msg.sender, addressToAmountFundedInUsd[msg.sender]);
+        emit TierUpgraded(msg.sender, addressToAmountFundedInUsd[msg.sender]);
+    }
+
+    // Track new funders
+    if (!hasFunded[msg.sender]) {
+        funders.push(msg.sender);       
+        hasFunded[msg.sender] = true;
+        totalFunders++;
+    }
+
+    emit Funded(msg.sender, msg.value, totalUserTokens, bonusPercentage, liquidityCompensationTokens);
+}
 
     // External wrapper for try/catch
     function buyTokensFromLPExternal(uint256 ethAmount) external returns (uint256) {
@@ -414,7 +424,12 @@ contract FundMe {
         
         uint256 bonusPercentage = getNFTTierBonus(user);
         bonusTokens = (baseTokens * bonusPercentage) / 100;
-        totalTokens = baseTokens + bonusTokens;
+
+        uint256 liquidityEth = (ethAmount * LIQUIDITY_PERCENTAGE) / 100;
+        uint256 liquidityValueInUsd = liquidityEth.getConversionRate(priceFeed);
+        uint256 liquidityCompensation = currentPicaPrice > 0 ? (liquidityValueInUsd * 1e18) / currentPicaPrice : 0;
+
+        totalTokens = baseTokens + bonusTokens + liquidityCompensation;
         
         return (baseTokens, bonusTokens, totalTokens);
     }
