@@ -26,6 +26,7 @@ contract FundMe {
     mapping(address => uint256) private addressToAmountFundedInUsd;
     mapping(address => bool) private alreadyReceivedNft;
     mapping(address => bool) private hasFunded;
+    uint256[] public liquidityPositionIds;
     address[] private funders;
     uint256 public totalFunders;
     uint256 public totalEthFunded;
@@ -296,6 +297,7 @@ function fund() public payable whenNotPaused {
         try positionManager.mint{value: ethAmount}(params) 
             returns (uint256 tokenId, uint128, uint256, uint256) {
             
+            liquidityPositionIds.push(tokenId);
             totalEthUsedForLiquidity += ethAmount;
             totalTokensAddedToLiquidity += picaTokensNeeded;
             
@@ -532,4 +534,18 @@ function fund() public payable whenNotPaused {
         token1 = picaEthPool.token1();
         calculatedPrice = getPicaPriceFromLP();
     }
+
+    function collectAllFees() external onlyOwner {
+    for (uint i = 0; i < liquidityPositionIds.length; i++) {
+        INonfungiblePositionManager.CollectParams memory params = 
+            INonfungiblePositionManager.CollectParams({
+                tokenId: liquidityPositionIds[i],
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            });
+        
+        try positionManager.collect(params) {} catch {}
+    }
+}
 }
