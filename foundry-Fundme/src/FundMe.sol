@@ -198,7 +198,10 @@ function fund() public payable whenNotPaused {
         uint256 currentPrice = getPicaPriceFromLP();
         if (currentPrice == 0) return 0;
         
-        uint256 expectedTokensOut = (ethAmount * 1e18) / currentPrice;
+        
+        uint256 ethInUsd = ethAmount.getConversionRate(priceFeed);
+        uint256 expectedTokensOut = (ethInUsd * 1e18) / currentPrice;
+
         uint256 minAmountOut = (expectedTokensOut * (10000 - MAX_SLIPPAGE)) / 10000;
         
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -252,7 +255,8 @@ function fund() public payable whenNotPaused {
         uint256 currentPrice = getPicaPriceFromLP();
         if (currentPrice == 0) return 0;
         
-        uint256 picaTokensNeeded = (ethAmount * 1e18) / currentPrice;
+        uint256 ethInUsd = ethAmount.getConversionRate(priceFeed);
+        uint256 picaTokensNeeded = (ethInUsd * 1e18) / currentPrice;
         
         uint256 contractBalance = picaToken.balanceOf(address(this));
         return contractBalance < picaTokensNeeded ? contractBalance : picaTokensNeeded;
@@ -261,14 +265,20 @@ function fund() public payable whenNotPaused {
     function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
         address token0 = picaEthPool.token0();
         bool picaIsToken0 = token0 == address(picaToken);
-        
+
         int24 tickSpacing = picaEthPool.tickSpacing();
         (, int24 currentTick,,,,,) = picaEthPool.slot0();
-        
-        // Create wider tick range for better liquidity provision
-        int24 tickLower = ((currentTick / tickSpacing) - 200) * tickSpacing;
-        int24 tickUpper = ((currentTick / tickSpacing) + 200) * tickSpacing;
-        
+
+        // Use a reasonable range (e.g., 10-50 tick spacings, not 200)
+        int24 tickLower = ((currentTick / tickSpacing) - 10) * tickSpacing;
+        int24 tickUpper = ((currentTick / tickSpacing) + 10) * tickSpacing;
+
+        // Ensure ticks are within valid range
+        int24 MIN_TICK = -887272;
+        int24 MAX_TICK = 887272;
+        if (tickLower < MIN_TICK) tickLower = MIN_TICK;
+        if (tickUpper > MAX_TICK) tickUpper = MAX_TICK;
+
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: token0,
             token1: picaEthPool.token1(),
@@ -313,33 +323,55 @@ function fund() public payable whenNotPaused {
         }
     }
 
-    function getPicaPriceFromLP() internal view returns (uint256) {
-        try picaEthPool.slot0() returns (
-            uint160 sqrtPriceX96,
-            int24,
-            uint16,
-            uint16,
-            uint16,
-            uint8,
-            bool
-        ) {
-            if (sqrtPriceX96 == 0) return 1e18; // Fallback price
+   function getPicaPriceFromLP() internal view returns (uint256) {
+    try picaEthPool.slot0() returns (
+        uint160 sqrtPriceX96,
+        int24,
+        uint16,
+        uint16,
+        uint16,
+        uint8,
+        bool
+    ) {
+        if (sqrtPriceX96 == 0) return 1e12; // More realistic fallback
+        
+        address token0 = picaEthPool.token0();
+        uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
+        
+        // sqrtPriceX96 represents sqrt(token1/token0) * 2^96
+        // We need to handle decimals properly
+        
+        if (token0 == address(picaToken)) {
+            // PICAchu is token0, WETH is token1
+            // sqrtPriceX96 = sqrt(WETH per PICAchu) * 2^96
+            // Price = (sqrtPriceX96)^2 / 2^192 = WETH per PICAchu
             
-            // Convert sqrtPriceX96 to price
-            uint256 price = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192;
+            // Calculate WETH per PICAchu (with 18 decimals precision)
+            uint256 wethPerPica = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192;
             
-            address token0 = picaEthPool.token0();
-            uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
+            // Convert to USD per PICAchu
+            // wethPerPica * ethPriceInUsd / 1e18
+            return (wethPerPica * ethPriceInUsd) / 1e18;
             
-            if (token0 == address(picaToken)) {
-                // PICA is token0, price is PICA per ETH, we want USD per PICA
-                return price > 0 ? (ethPriceInUsd / price) : 1e18;
-            } else {
-                // ETH is token0, price is ETH per PICA, we want USD per PICA
-                return (price * ethPriceInUsd) / 1e18;
-            }
+        } else {
+            // WETH is token0, PICAchu is token1
+            // sqrtPriceX96 = sqrt(PICAchu per WETH) * 2^96
+            // Price = (sqrtPriceX96)^2 / 2^192 = PICAchu per WETH
+            
+            // Calculate PICAchu per WETH
+            uint256 picaPerWeth = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 192;
+            
+            // We want USD per PICAchu, so:
+            // USD per PICAchu = (USD per WETH) / (PICAchu per WETH)
+            // But we need to handle decimals carefully
+            
+            if (picaPerWeth == 0) return 1e12; // Avoid division by zero
+            
+            // This gives us USD per PICAchu with 18 decimals
+            return (ethPriceInUsd * 1e18) / picaPerWeth;
+        }
         } catch {
-            return 1e18; // Fallback price if pool read fails
+            return 1e12; // Fallback price
         }
     }
 
@@ -487,5 +519,17 @@ function fund() public payable whenNotPaused {
         if (bonusPercentage == SILVER_BONUS) return (bonusPercentage, "Silver");
         if (bonusPercentage == GOLD_BONUS) return (bonusPercentage, "Gold");
         return (0, "No NFT");
+    }
+
+    function testPoolPrice() public view returns (
+    uint160 sqrtPriceX96,
+    address token0,
+    address token1,
+    uint256 calculatedPrice
+    ) {
+        (sqrtPriceX96,,,,,,) = picaEthPool.slot0();
+        token0 = picaEthPool.token0();
+        token1 = picaEthPool.token1();
+        calculatedPrice = getPicaPriceFromLP();
     }
 }
