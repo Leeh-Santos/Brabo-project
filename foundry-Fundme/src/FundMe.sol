@@ -454,7 +454,9 @@ function fund() public payable whenNotPaused {
     function calculateUserReward(address user, uint256 ethAmount) external view returns (uint256 baseTokens, uint256 bonusTokens, uint256 totalTokens) {
         uint256 buybackEth = (ethAmount * BUYBACK_PERCENTAGE) / 100;
         uint256 currentPicaPrice = getPicaPriceFromLP();
-        baseTokens = currentPicaPrice > 0 ? (buybackEth * 1e18) / currentPicaPrice : 0;
+        
+        uint256 buybackEthInUsd = buybackEth.getConversionRate(priceFeed);
+        baseTokens = currentPicaPrice > 0 ? (buybackEthInUsd * 1e18) / currentPicaPrice : 0;
         
         uint256 bonusPercentage = getNFTTierBonus(user);
         bonusTokens = (baseTokens * bonusPercentage) / 100;
