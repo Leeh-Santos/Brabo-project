@@ -98,7 +98,8 @@ contract FundMe {
         if (msg.sender != i_owner) revert FundMe__NotOwner();
         _;
     }
-function fund() public payable whenNotPaused {
+
+    function fund() public payable whenNotPaused {
     require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
     
     uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
