@@ -10,3 +10,6 @@
 [submodule "foundry-Fundme/lib/v3-periphery"]
 	path = foundry-Fundme/lib/v3-periphery
 	url = https://github.com/Uniswap/v3-periphery
+[submodule "foundry-Fundme/lib/v2-periphery"]
+	path = foundry-Fundme/lib/v2-periphery
+	url = https://github.com/uniswap/v2-periphery

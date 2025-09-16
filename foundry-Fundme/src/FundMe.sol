@@ -8,6 +8,7 @@ import {NftBrabo} from "./NftBrabo.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {INonfungiblePositionManager} from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import {IWETH} from "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 error FundMe__NotOwner();
 error FundMe__InsufficientTokenBalance();
@@ -194,17 +195,19 @@ function fund() public payable whenNotPaused {
 
     function buyTokensFromLP(uint256 ethAmount) internal returns (uint256 tokensBought) {
         if (ethAmount == 0) return 0;
-        
+
         // Calculate expected output and minimum with slippage protection
         uint256 currentPrice = getPicaPriceFromLP();
         if (currentPrice == 0) return 0;
-        
-        
+
         uint256 ethInUsd = ethAmount.getConversionRate(priceFeed);
         uint256 expectedTokensOut = (ethInUsd * 1e18) / currentPrice;
-
         uint256 minAmountOut = (expectedTokensOut * (10000 - MAX_SLIPPAGE)) / 10000;
-        
+
+        // Wrap ETH to WETH
+        IWETH(WETH).deposit{value: ethAmount}();
+        IERC20(WETH).approve(address(swapRouter), ethAmount);
+
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
             tokenOut: address(picaToken),
@@ -215,18 +218,18 @@ function fund() public payable whenNotPaused {
             amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0
         });
-        
-        try swapRouter.exactInputSingle{value: ethAmount}(params) 
+
+        try swapRouter.exactInputSingle(params)
             returns (uint256 amountOut) {
-            
+
             totalTokensBought += amountOut;
             totalEthUsedForBuyback += ethAmount;
-            
+
             uint256 newPrice = getPicaPriceFromLP();
             emit TokensBought(ethAmount, amountOut, newPrice);
-            
+
             return amountOut;
-            
+
         } catch Error(string memory reason) {
             emit SwapFailed(msg.sender, ethAmount, reason);
             revert FundMe__BuybackFailed();
@@ -280,6 +283,10 @@ function fund() public payable whenNotPaused {
         if (tickLower < MIN_TICK) tickLower = MIN_TICK;
         if (tickUpper > MAX_TICK) tickUpper = MAX_TICK;
 
+        // Wrap ETH to WETH
+        IWETH(WETH).deposit{value: ethAmount}();
+        IERC20(WETH).approve(address(positionManager), ethAmount);
+
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: token0,
             token1: picaEthPool.token1(),
@@ -293,16 +300,16 @@ function fund() public payable whenNotPaused {
             recipient: address(this),
             deadline: block.timestamp + 300
         });
-        
-        try positionManager.mint{value: ethAmount}(params) 
+
+        try positionManager.mint(params)
             returns (uint256 tokenId, uint128, uint256, uint256) {
-            
+
             liquidityPositionIds.push(tokenId);
             totalEthUsedForLiquidity += ethAmount;
             totalTokensAddedToLiquidity += picaTokensNeeded;
-            
+
             emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
-            
+
         } catch Error(string memory) {
             revert FundMe__LiquidityAdditionFailed();
         } catch {
@@ -335,47 +342,47 @@ function fund() public payable whenNotPaused {
         uint8,
         bool
     ) {
-        if (sqrtPriceX96 == 0) return 1e12; // More realistic fallback
-        
+        // FIX: Use realistic fallback price ($0.001 = 1e15)
+        if (sqrtPriceX96 == 0) return 1e15; // $0.001 per PICA
+
         address token0 = picaEthPool.token0();
         uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
-        
-        // sqrtPriceX96 represents sqrt(token1/token0) * 2^96
-        // We need to handle decimals properly
-        
+
         if (token0 == address(picaToken)) {
             // PICAchu is token0, WETH is token1
-            // sqrtPriceX96 = sqrt(WETH per PICAchu) * 2^96
-            // Price = (sqrtPriceX96)^2 / 2^192 = WETH per PICAchu
-            
-            // Calculate WETH per PICAchu (with 18 decimals precision)
             uint256 wethPerPica = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192;
-            
-            // Convert to USD per PICAchu
-            // wethPerPica * ethPriceInUsd / 1e18
-            return (wethPerPica * ethPriceInUsd) / 1e18;
-            
+
+            // FIX: Add zero check and realistic minimum
+            if (wethPerPica == 0) return 1e15; // $0.001 per PICA
+
+            uint256 priceInUsd = (wethPerPica * ethPriceInUsd) / 1e18;
+
+            // FIX: Ensure price is reasonable (between $0.0001 and $1)
+            if (priceInUsd < 1e14) return 1e14; // Min $0.0001
+            if (priceInUsd > 1e18) return 1e18; // Max $1
+
+            return priceInUsd;
+
         } else {
             // WETH is token0, PICAchu is token1
-            // sqrtPriceX96 = sqrt(PICAchu per WETH) * 2^96
-            // Price = (sqrtPriceX96)^2 / 2^192 = PICAchu per WETH
-            
-            // Calculate PICAchu per WETH
             uint256 picaPerWeth = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 192;
-            
-            // We want USD per PICAchu, so:
-            // USD per PICAchu = (USD per WETH) / (PICAchu per WETH)
-            // But we need to handle decimals carefully
-            
-            if (picaPerWeth == 0) return 1e12; // Avoid division by zero
-            
-            // This gives us USD per PICAchu with 18 decimals
-            return (ethPriceInUsd * 1e18) / picaPerWeth;
+
+            // FIX: Proper zero protection with realistic fallback
+            if (picaPerWeth == 0) return 1e15; // $0.001 per PICA
+
+            uint256 priceInUsd = (ethPriceInUsd * 1e18) / picaPerWeth;
+
+            // FIX: Ensure price is reasonable (between $0.0001 and $1)
+            if (priceInUsd < 1e14) return 1e14; // Min $0.0001
+            if (priceInUsd > 1e18) return 1e18; // Max $1
+
+            return priceInUsd;
         }
-        } catch {
-            return 1e12; // Fallback price
-        }
+    } catch {
+        // FIX: Use realistic fallback price instead of $1 trillion
+        return 1e15; // $0.001 per PICA
     }
+}
 
     // Admin functions
     function upgradeTierForUser(address user) external onlyOwner {

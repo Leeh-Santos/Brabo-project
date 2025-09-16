@@ -6,7 +6,8 @@ remappings = [
     "@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/",
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "@uniswap/v3-core/=lib/v3-core/",
-    "@uniswap/v3-periphery/=lib/v3-periphery/"
+    "@uniswap/v3-periphery/=lib/v3-periphery/",
+    "@uniswap/v2-periphery/=lib/v2-periphery/"
 ]
 
 
