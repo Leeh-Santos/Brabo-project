@@ -207,49 +207,45 @@ contract FundMe {
     }
 
     function buyTokensFromLP(uint256 ethAmount) internal returns (uint256 tokensBought) {
-        if (ethAmount == 0) return 0;
+    if (ethAmount == 0) return 0;
 
-        // Calculate expected output and minimum with slippage protection
-        uint256 currentPrice = getPicaPriceFromLP();
-        if (currentPrice == 0) return 0;
+    // Calculate expected output and minimum with slippage protection
+    uint256 currentPrice = getPicaPriceFromLP();
+    if (currentPrice == 0) return 0;
 
-        uint256 ethInUsd = ethAmount.getConversionRate(priceFeed);
-        uint256 expectedTokensOut = (ethInUsd * 1e18) / currentPrice;
-        uint256 minAmountOut = (expectedTokensOut * (10000 - MAX_SLIPPAGE)) / 10000;
+    uint256 ethInUsd = ethAmount.getConversionRate(priceFeed);
+    uint256 expectedTokensOut = (ethInUsd * 1e18) / currentPrice;
+    uint256 minAmountOut = (expectedTokensOut * (10000 - MAX_SLIPPAGE)) / 10000;
 
-        // Wrap ETH to WETH
-        IWETH(WETH).deposit{value: ethAmount}();
-        IERC20(WETH).approve(address(swapRouter), ethAmount);
+    ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        tokenIn: WETH,
+        tokenOut: address(picaToken),
+        fee: picaEthPool.fee(),
+        recipient: address(this),
+        deadline: block.timestamp + 300,
+        amountIn: ethAmount,
+        amountOutMinimum: minAmountOut,
+        sqrtPriceLimitX96: 0
+    });
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: WETH,
-            tokenOut: address(picaToken),
-            fee: picaEthPool.fee(),
-            recipient: address(this),
-            deadline: block.timestamp + 300,
-            amountIn: ethAmount,
-            amountOutMinimum: minAmountOut,
-            sqrtPriceLimitX96: 0
-        });
+    try swapRouter.exactInputSingle{value: ethAmount}(params)
+        returns (uint256 amountOut) {
 
-        try swapRouter.exactInputSingle(params)
-            returns (uint256 amountOut) {
+        totalTokensBought += amountOut;
+        totalEthUsedForBuyback += ethAmount;
 
-            totalTokensBought += amountOut;
-            totalEthUsedForBuyback += ethAmount;
+        uint256 newPrice = getPicaPriceFromLP();
+        emit TokensBought(ethAmount, amountOut, newPrice);
 
-            uint256 newPrice = getPicaPriceFromLP();
-            emit TokensBought(ethAmount, amountOut, newPrice);
+        return amountOut;
 
-            return amountOut;
-
-        } catch Error(string memory reason) {
-            emit SwapFailed(msg.sender, ethAmount, reason);
-            revert FundMe__BuybackFailed();
-        } catch {
-            revert FundMe__BuybackFailed();
-        }
+    } catch Error(string memory reason) {
+        emit SwapFailed(msg.sender, ethAmount, reason);
+        revert FundMe__BuybackFailed();
+    } catch {
+        revert FundMe__BuybackFailed();
     }
+}
 
     // External wrapper for try/catch
     function addLiquidityToPoolExternal(uint256 ethAmount) external {
@@ -279,56 +275,55 @@ contract FundMe {
         return contractBalance < picaTokensNeeded ? contractBalance : picaTokensNeeded;
     }
 
-    function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
-        address token0 = picaEthPool.token0();
-        bool picaIsToken0 = token0 == address(picaToken);
+function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) private {
+    address token0 = picaEthPool.token0();
+    bool picaIsToken0 = token0 == address(picaToken);
 
-        int24 tickSpacing = picaEthPool.tickSpacing();
-        (, int24 currentTick,,,,,) = picaEthPool.slot0();
+    int24 tickSpacing = picaEthPool.tickSpacing();
+    (, int24 currentTick,,,,,) = picaEthPool.slot0();
 
-        // Use a reasonable range (e.g., 10-50 tick spacings, not 200)
-        int24 tickLower = ((currentTick / tickSpacing) - 10) * tickSpacing;
-        int24 tickUpper = ((currentTick / tickSpacing) + 10) * tickSpacing;
+    // Use a reasonable range (e.g., 10 tick spacings)
+    int24 tickLower = ((currentTick / tickSpacing) - 10) * tickSpacing;
+    int24 tickUpper = ((currentTick / tickSpacing) + 10) * tickSpacing;
 
-        // Ensure ticks are within valid range
-        int24 MIN_TICK = -887272;
-        int24 MAX_TICK = 887272;
-        if (tickLower < MIN_TICK) tickLower = MIN_TICK;
-        if (tickUpper > MAX_TICK) tickUpper = MAX_TICK;
+    // Ensure ticks are within valid range
+    int24 MIN_TICK = -887272;
+    int24 MAX_TICK = 887272;
+    if (tickLower < MIN_TICK) tickLower = MIN_TICK;
+    if (tickUpper > MAX_TICK) tickUpper = MAX_TICK;
 
-        // Wrap ETH to WETH
-        IWETH(WETH).deposit{value: ethAmount}();
-        IERC20(WETH).approve(address(positionManager), ethAmount);
+    // Approve PICAchu tokens for position manager
+    picaToken.approve(address(positionManager), picaTokensNeeded);
 
-        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
-            token0: token0,
-            token1: picaEthPool.token1(),
-            fee: picaEthPool.fee(),
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            amount0Desired: picaIsToken0 ? picaTokensNeeded : ethAmount,
-            amount1Desired: picaIsToken0 ? ethAmount : picaTokensNeeded,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp + 300
-        });
+    INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+        token0: token0,
+        token1: picaEthPool.token1(),
+        fee: picaEthPool.fee(),
+        tickLower: tickLower,
+        tickUpper: tickUpper,
+        amount0Desired: picaIsToken0 ? picaTokensNeeded : ethAmount,
+        amount1Desired: picaIsToken0 ? ethAmount : picaTokensNeeded,
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: address(this),
+        deadline: block.timestamp + 300
+    });
 
-        try positionManager.mint(params)
-            returns (uint256 tokenId, uint128, uint256, uint256) {
+    try positionManager.mint{value: ethAmount}(params)
+        returns (uint256 tokenId, uint128, uint256, uint256) {
 
-            liquidityPositionIds.push(tokenId);
-            totalEthUsedForLiquidity += ethAmount;
-            totalTokensAddedToLiquidity += picaTokensNeeded;
+        liquidityPositionIds.push(tokenId);
+        totalEthUsedForLiquidity += ethAmount;
+        totalTokensAddedToLiquidity += picaTokensNeeded;
 
-            emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
+        emit LiquidityAdded(ethAmount, picaTokensNeeded, tokenId);
 
-        } catch Error(string memory) {
-            revert FundMe__LiquidityAdditionFailed();
-        } catch {
-            revert FundMe__LiquidityAdditionFailed();
-        }
+    } catch Error(string memory) {
+        revert FundMe__LiquidityAdditionFailed();
+    } catch {
+        revert FundMe__LiquidityAdditionFailed();
     }
+}
     
     function getNFTTierBonus(address user) internal view returns (uint256) {
         if (!alreadyReceivedNft[user]) {
