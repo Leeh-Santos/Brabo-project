@@ -355,43 +355,60 @@ contract FundMe {
         uint8,
         bool
     ) {
-        // FIX: Use realistic fallback price ($0.001 = 1e15)
-        if (sqrtPriceX96 == 0) return 1e15; // $0.001 per PICA
-
+        if (sqrtPriceX96 == 0) return 1409000000000000; // ~$0.001409 fallback
+        
         address token0 = picaEthPool.token0();
         uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
-
-        if (token0 == address(picaToken)) {
-            // PICAchu is token0, WETH is token1
-            uint256 wethPerPica = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192;
-
-            // FIX: Add zero check and realistic minimum
-            if (wethPerPica == 0) return 1e15; // $0.001 per PICA
-
-            uint256 priceInUsd = (wethPerPica * ethPriceInUsd) / 1e18;
-
-            // FIX: Ensure price is reasonable (minimum $0.0001, no maximum)
-            if (priceInUsd < 1e14) return 1e14; // Min $0.0001
-
-            return priceInUsd;
-
-        } else {
+        
+        if (token0 == WETH) {
             // WETH is token0, PICAchu is token1
-            uint256 picaPerWeth = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 192;
-
-            // FIX: Proper zero protection with realistic fallback
-            if (picaPerWeth == 0) return 1e15; // $0.001 per PICA
-
+            // sqrtPriceX96 = sqrt(PICAchu per WETH) * 2^96
+            
+            // Calculate price ratio
+            uint256 sqrtPrice = uint256(sqrtPriceX96);
+            
+            // Square the price and divide by 2^192 to get PICAchu per WETH
+            // Since both tokens have 18 decimals, this gives us the raw ratio
+            uint256 picaPerWeth = (sqrtPrice * sqrtPrice * 1e18) >> 192;
+            
+            if (picaPerWeth == 0) return 1409000000000000;
+            
+            // Calculate USD price per PICAchu
+            // If 3,198,540 PICAchu = 1 WETH, and 1 WETH = $4500
+            // Then 1 PICAchu = $4500 / 3,198,540 = ~$0.001409
             uint256 priceInUsd = (ethPriceInUsd * 1e18) / picaPerWeth;
-
-            // FIX: Ensure price is reasonable (minimum $0.0001, no maximum)
-            if (priceInUsd < 1e14) return 1e14; // Min $0.0001
-
+            
+            // Sanity checks to prevent astronomical values
+            if (priceInUsd > 1e18) return 1409000000000000; // Cap at $1
+            if (priceInUsd < 1e12) return 1409000000000000; // Floor at $0.000001
+            
             return priceInUsd;
+            
+        } else if (token0 == address(picaToken)) {
+            // PICAchu is token0, WETH is token1
+            // sqrtPriceX96 = sqrt(WETH per PICAchu) * 2^96
+            
+            uint256 sqrtPrice = uint256(sqrtPriceX96);
+            
+            // Square the price and divide by 2^192 to get WETH per PICAchu
+            uint256 wethPerPica = (sqrtPrice * sqrtPrice * 1e18) >> 192;
+            
+            if (wethPerPica == 0) return 1409000000000000;
+            
+            // Direct calculation: WETH per PICAchu * ETH price in USD
+            uint256 priceInUsd = (wethPerPica * ethPriceInUsd) / 1e18;
+            
+            // Sanity checks
+            if (priceInUsd > 1e18) return 1409000000000000; // Cap at $1
+            if (priceInUsd < 1e12) return 1409000000000000; // Floor at $0.000001
+            
+            return priceInUsd;
+        } else {
+            // Shouldn't happen, but fallback
+            return 1409000000000000;
         }
     } catch {
-        // FIX: Use realistic fallback price instead of $1 trillion
-        return 1e15; // $0.001 per PICA
+        return 1409000000000000; // ~$0.001409 fallback
     }
 }
 
