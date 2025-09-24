@@ -16,7 +16,7 @@ error FundMe__TokenTransferFailed();
 error FundMe__BuybackFailed();
 error FundMe__LiquidityAdditionFailed();
 error FundMe__SlippageExceeded();
-
+        
 contract FundMe {
     using PriceConverter for uint256;
 
@@ -71,6 +71,7 @@ contract FundMe {
     event SwapFailed(address indexed user, uint256 ethAmount, string reason);
     event BuybackFailed(address indexed user, uint256 ethAmount);
     event LiquidityFailed(address indexed user, uint256 ethAmount);
+    event EthRefunded(address indexed user, uint256 ethAmount);
 
     constructor(
         address _priceFeed, 
@@ -107,23 +108,27 @@ contract FundMe {
     uint256 liquidityEth = (msg.value * LIQUIDITY_PERCENTAGE) / 100;
     
     uint256 tokensBought = 0;
-    
+    uint256 failedEth = 0;
+
     // Try buyback with error handling
     try this.buyTokensFromLPExternal(buybackEth) returns (uint256 tokens) {
         tokensBought = tokens;
     } catch Error(string memory) {
+        failedEth += buybackEth;
         emit BuybackFailed(msg.sender, buybackEth);
-        // Continue execution - don't fail entire transaction
     } catch {
+        failedEth += buybackEth;
         emit BuybackFailed(msg.sender, buybackEth);
     }
-    
+
     // Try liquidity addition with error handling
     try this.addLiquidityToPoolExternal(liquidityEth) {
         // Success - event emitted in function
     } catch Error(string memory ) {
+        failedEth += liquidityEth;
         emit LiquidityFailed(msg.sender, liquidityEth);
     } catch {
+        failedEth += liquidityEth;
         emit LiquidityFailed(msg.sender, liquidityEth);
     }
     
@@ -180,9 +185,16 @@ contract FundMe {
 
     // Track new funders
     if (!hasFunded[msg.sender]) {
-        funders.push(msg.sender);       
+        funders.push(msg.sender);
         hasFunded[msg.sender] = true;
         totalFunders++;
+    }
+
+    // Refund failed ETH operations
+    if (failedEth > 0) {
+        (bool refundSuccess,) = payable(msg.sender).call{value: failedEth}("");
+        require(refundSuccess, "ETH refund failed");
+        emit EthRefunded(msg.sender, failedEth);
     }
 
     emit Funded(msg.sender, msg.value, totalUserTokens, bonusPercentage, liquidityCompensationTokens);
@@ -358,9 +370,8 @@ contract FundMe {
 
             uint256 priceInUsd = (wethPerPica * ethPriceInUsd) / 1e18;
 
-            // FIX: Ensure price is reasonable (between $0.0001 and $1)
+            // FIX: Ensure price is reasonable (minimum $0.0001, no maximum)
             if (priceInUsd < 1e14) return 1e14; // Min $0.0001
-            if (priceInUsd > 1e18) return 1e18; // Max $1
 
             return priceInUsd;
 
@@ -373,9 +384,8 @@ contract FundMe {
 
             uint256 priceInUsd = (ethPriceInUsd * 1e18) / picaPerWeth;
 
-            // FIX: Ensure price is reasonable (between $0.0001 and $1)
+            // FIX: Ensure price is reasonable (minimum $0.0001, no maximum)
             if (priceInUsd < 1e14) return 1e14; // Min $0.0001
-            if (priceInUsd > 1e18) return 1e18; // Max $1
 
             return priceInUsd;
         }
