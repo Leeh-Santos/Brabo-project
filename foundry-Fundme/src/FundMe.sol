@@ -340,40 +340,26 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
         }
     }
 
-   function getPicaPriceFromLP() internal view returns (uint256) {
-    try picaEthPool.slot0() returns (
-        uint160 sqrtPriceX96,
-        int24,
-        uint16,
-        uint16,
-        uint16,
-        uint8,
-        bool
-    ) {
-        if (sqrtPriceX96 == 0) return 1409000000000000; // ~$0.001409 fallback
+function getPicaPriceFromLP() internal view returns (uint256) {
+    try picaEthPool.slot0() returns (uint160 sqrtPriceX96, int24, uint16, uint16, uint16, uint8, bool) {
+        if (sqrtPriceX96 == 0) return 1409000000000000; // $0.001409 fallback
         
         address token0 = picaEthPool.token0();
         uint256 ethPriceInUsd = uint256(1 * 10**18).getConversionRate(priceFeed);
         
         if (token0 == WETH) {
             // WETH is token0, PICAchu is token1
-            // sqrtPriceX96 = sqrt(PICAchu per WETH) * 2^96
-            
-            // Calculate price ratio
             uint256 sqrtPrice = uint256(sqrtPriceX96);
             
-            // Square the price and divide by 2^192 to get PICAchu per WETH
-            // Since both tokens have 18 decimals, this gives us the raw ratio
-            uint256 picaPerWeth = (sqrtPrice * sqrtPrice * 1e18) >> 192;
+            // Remove the * 1e18 here!
+            uint256 picaPerWeth = (sqrtPrice * sqrtPrice) >> 192;
             
             if (picaPerWeth == 0) return 1409000000000000;
             
-            // Calculate USD price per PICAchu
-            // If 3,198,540 PICAchu = 1 WETH, and 1 WETH = $4500
-            // Then 1 PICAchu = $4500 / 3,198,540 = ~$0.001409
+            // Now this should give correct price
             uint256 priceInUsd = (ethPriceInUsd * 1e18) / picaPerWeth;
             
-            // Sanity checks to prevent astronomical values
+            // Sanity checks
             if (priceInUsd > 1e18) return 1409000000000000; // Cap at $1
             if (priceInUsd < 1e12) return 1409000000000000; // Floor at $0.000001
             
@@ -381,29 +367,25 @@ function _mintLiquidityPosition(uint256 ethAmount, uint256 picaTokensNeeded) pri
             
         } else if (token0 == address(picaToken)) {
             // PICAchu is token0, WETH is token1
-            // sqrtPriceX96 = sqrt(WETH per PICAchu) * 2^96
-            
             uint256 sqrtPrice = uint256(sqrtPriceX96);
             
-            // Square the price and divide by 2^192 to get WETH per PICAchu
-            uint256 wethPerPica = (sqrtPrice * sqrtPrice * 1e18) >> 192;
+            // Remove the * 1e18 here too!
+            uint256 wethPerPica = (sqrtPrice * sqrtPrice) >> 192;
             
             if (wethPerPica == 0) return 1409000000000000;
             
-            // Direct calculation: WETH per PICAchu * ETH price in USD
             uint256 priceInUsd = (wethPerPica * ethPriceInUsd) / 1e18;
             
             // Sanity checks
-            if (priceInUsd > 1e18) return 1409000000000000; // Cap at $1
-            if (priceInUsd < 1e12) return 1409000000000000; // Floor at $0.000001
+            if (priceInUsd > 1e18) return 1409000000000000;
+            if (priceInUsd < 1e12) return 1409000000000000;
             
             return priceInUsd;
         } else {
-            // Shouldn't happen, but fallback
             return 1409000000000000;
         }
     } catch {
-        return 1409000000000000; // ~$0.001409 fallback
+        return 1409000000000000;
     }
 }
 
