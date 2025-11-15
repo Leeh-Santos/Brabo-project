@@ -2,6 +2,12 @@ forge script script/DeployFundMe.s.sol --rpc-url $BASEMAIN --private-key $KEY --
 
 forge inspect src/FundMe.sol:FundMe abi > fundmepoha 
 
+
+== Return ==
+0: contract FundMe 0xdC2545Ca8C104B93f595C7798F1A5C0D75852EdE
+1: contract NftBrabo 0xa55848A2566b0Ca49D4cFD4C14DaE595C4aBF690
+
+
 == Return ==
 0: contract FundMe 0x082098308d462BCfC0229e621a0C4aa36bC12Ea7
 1: contract NftBrabo 0xc689d1125dBBdbd985b45a4ed891501138cf8287

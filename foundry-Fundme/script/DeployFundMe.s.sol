@@ -19,6 +19,9 @@ contract DeployFundme is Script {
         address positionManager = 0x03a520b32c04bf3beEF7bF5d56831fcB7e84f141;
         // 🎯 YOUR LP POSITION DETAILS - Get from environment variables
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
+
+
+        address weth = 0x4200000000000000000000000000000000000006;
     
         vm.startBroadcast(); 
         
@@ -39,7 +42,8 @@ contract DeployFundme is Script {
             address(braboNft),   // Your NFT contract
             picaEthPool,         // Your V3 pool address
             swapRouter,          // Base V3 Swap Router
-            positionManager      // Base V3 Position Manager (NEW!)
+            positionManager,
+            weth     
         );
         
         // Setup NFT minter
