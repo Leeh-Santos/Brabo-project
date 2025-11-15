@@ -14,3 +14,23 @@ import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/Transfer
 // Your contracts
 import {PriceConverter} from "./PriceConverter.sol";
 import {NftBrabo} from "./NftBrabo.sol";
+
+
+
+
+uniswap shit>
+forge build
+[⠊] Compiling...
+[⠃] Compiling 5 files with Solc 0.8.28
+[⠊] Solc 0.8.28 finished in 743.84ms
+Error: Compiler run failed:
+Error (9640): Explicit type conversion not allowed from "int24" to "uint256".
+  --> lib/v3-core/contracts/libraries/TickMath.sol:25:28:
+   |
+25 |         require(absTick <= uint256(MAX_TICK), 'T');
+   |         
+         ^^^^^^^^^^^^^^^^^
+
+
+
+   require(absTick <= uint256(uint24(MAX_TICK)), 'T'); // Fixed cast

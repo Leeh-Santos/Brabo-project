@@ -67,6 +67,7 @@ contract FundMe {
     
     address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 2 * 10 ** 17;
+    uint256 public constant MINLIQADD = 2 * 10 ** 17;
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
@@ -224,15 +225,18 @@ contract FundMe {
 }
 
 
-function addLiquidityToPool(uint256 ethAmount) internal returns (
+function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER **IDEA
     uint256 tokenId,
     uint128 liquidity,
     uint256 amount0,
     uint256 amount1
 ) {
 
-    require(ethAmount > 0, "Must send ETH");
-    require(address(this).balance >= ethAmount, "Insufficient ETH in contract");
+    if (batchAmount < MINLIQADD) {
+        revert FundMe__LiquidityAdditionFailed();
+    }
+
+    // require(address(this).balance >= ethAmount, "Insufficient ETH in contract"); check requirements 
     
     uint256 picaAmount = getPicaPerWeth() * ethAmount / 1e18; // Adjust for decimals since is wei     
     require(picaAmount > 0, "issue calculating PICA amount");    
