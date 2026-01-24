@@ -90,9 +90,9 @@ contract NftBrabo is ERC721 {
         MOOD newTier;
         //uint256 fundingInDollars = fundingAmountUsd / 1e18;
         
-        if (fundingAmountUsd >= 5 * 10 ** 17) {
+        if (fundingAmountUsd >= 100 * 10 ** 18) {
             newTier = MOOD.GOLD;
-        } else if (fundingAmountUsd >= 4 * 10 ** 17) {
+        } else if (fundingAmountUsd >= 50 * 10 ** 18) {
             newTier = MOOD.SILVER;
         } else {
             newTier = MOOD.BRONZE;

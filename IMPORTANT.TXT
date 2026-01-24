@@ -34,3 +34,12 @@ Error (9640): Explicit type conversion not allowed from "int24" to "uint256".
 
 
    require(absTick <= uint256(uint24(MAX_TICK)), 'T'); // Fixed cast
+
+
+
+
+
+
+
+
+   why verify signatures, mercle tree and mappins, signatures and sing msaseg

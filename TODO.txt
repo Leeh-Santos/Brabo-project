@@ -1,0 +1,60 @@
+lounch brabro token
+
+verify tokenomics for staking and fund                 20$ for liquidity::
+
+and what would be the tokenomics If I want to create a new token to do it? what would be the max supply? 
+and how much sould I allocated for the fundme contract and the staking contract? 
+consider that I only want to add 20$ for the LP initial liquidity take in consideration that
+ also the fundme contract would interact with this nft contract  and also a staking contract
+
+limit for nft?
+
+add get liquidity function 
+
+
+
+Deploy fist then check later
+**verify if besides swap, only 20% is buy back, 80% liquidity is added and contract grant tokens directly thru contract
+can mitigate low liquidity
+
+
+
+
+
+
+Token Flow Diagram:
+═══════════════════════════════════════════
+
+                    [TOKEN CONTRACT]
+                     10M Total Supply
+                            |
+        ┌───────────────────┼───────────────────┐
+        |                   |                   |
+   [FUNDME]            [STAKING]          [UNISWAP LP]
+   4M tokens           2.5M tokens        500k + $20 ETH
+        |                   |                   |
+        |                   |                   |
+    [USERS]             [USERS]             [TRADERS]
+  Fund & get          Stake &              Buy/Sell
+   tokens              earn                 freely
+        |                   |                   |
+        └───────────────────┼───────────────────┘
+                            |
+                      [NFT BONUSES]
+                    Bronze/Silver/Gold
+                      +2%/+5%/+10%
+
+10M Total:
+═══════════════════════════════════════════
+
+
+
+80% (8M)   → FundMe Reserve (supports 300 users)
+10% (1M)   → Staking (2 years, 50-500% APY)
+5% (500k)  → Initial LP (your $20)
+
+
+
+3% (300k)  → Team (vested 3 years)
+2% (200k)  → Marketing
+

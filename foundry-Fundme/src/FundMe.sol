@@ -9,6 +9,8 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {INonfungiblePositionManager} from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import {IWETH} from "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
@@ -40,7 +42,7 @@ error FundMe__SlippageExceeded();
 error InsufficientPicaBalance();
 error InsufficientPicaBalance2();
         
-contract FundMe {
+contract FundMe is ReentrancyGuard {
     using PriceConverter for uint256;
 
 
@@ -50,12 +52,18 @@ contract FundMe {
     mapping(address => bool) private hasFunded;
     mapping(uint256 => Deposit) public deposits;
 
+
     uint256[] public liquidityPositionIds;
     address[] private funders;
     uint256 public totalFunders;
     uint256 public totalEthFunded;
     uint256 public batchAmount;
     uint256 public totalBoughtBack;
+
+    //for v2 debugging
+    uint256 public brbused;
+    uint256 public ethused;
+
     address public immutable WETH;
 
     address public  token0;
@@ -67,7 +75,7 @@ contract FundMe {
     
     address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 2 * 10 ** 17;
-    uint256 public constant MINLIQADD = 2 * 10 ** 17;
+    uint256 public constant MINLIQADD = 2 * 10 ** 15;
     
     AggregatorV3Interface internal priceFeed;
     IERC20 public immutable picaToken;
@@ -145,18 +153,19 @@ contract FundMe {
         _;
     }
 
-    function fund() public payable whenNotPaused {
+    function fund() public payable whenNotPaused nonReentrant {
 
     require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
 
     uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
     
     // BUY BACK PART
-    uint256 buybackAmount = (msg.value * 80) / 100;  // 80% for buyback
-    uint256 batchAllocation = msg.value - buybackAmount;  // 20% for batchAmount
-    batchAmount += batchAllocation;
+    uint256 buybackAmount = (msg.value * 20) / 100;  
+    uint256 batchAllocation = (msg.value * 80) / 100;
 
-    uint256 compensation = (getPicaPerWeth() * batchAllocation) / 1e18;
+
+    uint256 price_before_swap = getPicaPerWeth();
+
 
     ISwapRouter02 router02 = ISwapRouter02(0x2626664c2603336E57B271c5C0b26F421741e481);
     
@@ -166,10 +175,14 @@ contract FundMe {
             tokenOut: address(picaToken),
             fee: POOL_FEE,
             recipient: msg.sender,
-            amountIn: buybackAmount,  // Use only 80% for swap
+            amountIn: buybackAmount,  
             amountOutMinimum: 0,
             sqrtPriceLimitX96: 0
         });
+
+    totalBoughtBack = router02.exactInputSingle{value: buybackAmount}(params);
+
+    uint256 compensation = (price_before_swap * batchAllocation) / 1e18;
 
     uint256 contractBalance = picaToken.balanceOf(address(this));
 
@@ -180,22 +193,22 @@ contract FundMe {
         revert InsufficientPicaBalance();
     }
     
-    totalBoughtBack = router02.exactInputSingle{value: buybackAmount}(params);
+    batchAmount += batchAllocation;
+
+
 
     
     // NFT BONUS COOMPENSATION 
     uint256 bonusPercentage = getNFTTierBonus(msg.sender);
-    uint256 bonusTokens = (totalBoughtBack + compensation * bonusPercentage) / 100;
-        
-    if (bonusTokens >= picaToken.balanceOf(address(this))){
-        require(picaToken.transfer(msg.sender, bonusTokens), "Compensation transfer failed");
-    }
-    else {
-        revert InsufficientPicaBalance2();
-    }
+    uint256 bonusTokens = ((totalBoughtBack + compensation) * bonusPercentage) / 100;  
 
+    if (bonusTokens <= picaToken.balanceOf(address(this))){
+          require(picaToken.transfer(msg.sender, bonusTokens), "Compensation transfer failed");
+      } else {
+          revert InsufficientPicaBalance2();
+      }
     // NFT minting logic
-    if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 3 * 10 ** 17 && !alreadyReceivedNft[msg.sender]) {
+    if (addressToAmountFundedInUsd[msg.sender] + ethValueInUsd >= 5 * 10 ** 18 && !alreadyReceivedNft[msg.sender]) {
         alreadyReceivedNft[msg.sender] = true;
         braboNft.mintNftTo(msg.sender);
         emit NftMinted(msg.sender);
@@ -225,7 +238,7 @@ contract FundMe {
 }
 
 
-function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER **IDEA
+function addLiquidityToPool() public nonReentrant returns (  //GIVE COMPENSATION FOR CLICKER **IDEA
     uint256 tokenId,
     uint128 liquidity,
     uint256 amount0,
@@ -236,14 +249,14 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
         revert FundMe__LiquidityAdditionFailed();
     }
 
-    // require(address(this).balance >= ethAmount, "Insufficient ETH in contract"); check requirements 
+    // require(address(this).balance >= ethAmount, "Insufficient Pica"); check requirements 
     
-    uint256 picaAmount = getPicaPerWeth() * ethAmount / 1e18; // Adjust for decimals since is wei     
+    uint256 picaAmount = (getPicaPerWeth() * batchAmount) / 1e18; // Adjust for decimals since is wei     
     require(picaAmount > 0, "issue calculating PICA amount");    
     require(picaToken.balanceOf(address(this)) >= picaAmount, "Insufficient PICA in contract");
 
      if (hasMainPosition) {
-            return _increaseExistingPosition(picaAmount, ethAmount);
+            return _increaseExistingPosition(picaAmount, batchAmount);
         } 
     
    
@@ -266,8 +279,8 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
     int24 tickUpper = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
     
     // Calculate minimum amounts (5% slippage tolerance)
-    uint256 amount0Min = picaIsToken0 ? (picaAmount * 95) / 100 : (ethAmount * 95) / 100;
-    uint256 amount1Min = picaIsToken0 ? (ethAmount * 95) / 100 : (picaAmount * 95) / 100;
+    uint256 amount0Min = picaIsToken0 ? (picaAmount * 95) / 100 : (batchAmount * 95) / 100;
+    uint256 amount1Min = picaIsToken0 ? (batchAmount * 95) / 100 : (picaAmount * 95) / 100;
     
     // Set up mint parameters
     INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
@@ -276,8 +289,8 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
         fee: fee,
         tickLower: tickLower,
         tickUpper: tickUpper,
-        amount0Desired: picaIsToken0 ? picaAmount : ethAmount,
-        amount1Desired: picaIsToken0 ? ethAmount : picaAmount,
+        amount0Desired: picaIsToken0 ? picaAmount : batchAmount,
+        amount1Desired: picaIsToken0 ? batchAmount : picaAmount,
         amount0Min: amount0Min,        // ✅ Added slippage protection
         amount1Min: amount1Min,        // ✅ Added slippage protection
         recipient: address(this),
@@ -285,7 +298,7 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
     });
     
     // Mint the position with ETH
-    (tokenId, liquidity, amount0, amount1) = positionManager.mint{value: ethAmount}(params);
+    (tokenId, liquidity, amount0, amount1) = positionManager.mint{value: batchAmount}(params);
     
     // Store the position
     _createDeposit(address(this), tokenId);
@@ -299,16 +312,20 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
     totalEthUsedForLiquidity += ethUsed;        // ✅ Fixed
     totalTokensAddedToLiquidity += picaUsed;    // ✅ Fixed
     
+    brbused += picaUsed;
+    ethused += ethUsed;
     
     hasMainPosition = true;
     mainPositionId = tokenId; // should be here?
 
     emit LiquidityAdded(ethUsed, picaUsed, tokenId);
+
+    batchAmount = 0;
     
     return (tokenId, liquidity, amount0, amount1);
 }
 
-    function _increaseExistingPosition(uint256 picaAmount, uint256 ethAmount)
+function _increaseExistingPosition(uint256 picaAmount, uint256 ethAmount)
         internal
         returns (
             uint256 tokenId,
@@ -354,8 +371,11 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
         totalEthUsedForLiquidity += ethUsed;
         totalTokensAddedToLiquidity += picaUsed;
         
+        brbused = picaUsed;
+        ethused = ethUsed;
     
-        
+        batchAmount = 0;
+
         emit LiquidityAdded(ethUsed, picaUsed, tokenId);
         
         return (tokenId, liquidity, amount0, amount1);
@@ -559,6 +579,7 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
         return (0, "No NFT");
     }
 
+
     function getWethPerPica() public view returns (uint256) {
         (uint160 sqrtPriceX96, , , , , , ) = picaEthPool.slot0();
         uint256 sqrtPrice = uint256(sqrtPriceX96);
@@ -580,17 +601,33 @@ function addLiquidityToPool() public returns (  //GIVE COMPENSATION FOR CLICKER 
     }
 
         // How many PICA can I buy with 1 WETH (should return ~2,652,780 * 1e18)
-        function getPicaPerWeth() public view returns (uint256) {
-            (uint160 sqrtPriceX96, , , , , , ) = picaEthPool.slot0();
-
-            if (token0 == address(WETH)) {
-                // Shift right by 96 twice = divide by 2^192 total
-                uint256 price = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) / (1 << 96)) * 1e18 / (1 << 96);
-                return price;
-            } else {
-                uint256 wethPerPica = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) / (1 << 96)) * 1e18 / (1 << 96);
-                return (1e36) / wethPerPica;
-            }
-        }
+function getPicaPerWeth() public view returns (uint256) {
+    (uint160 sqrtPriceX96, , , , , , ) = picaEthPool.slot0();
+    
+    if (token0 == address(WETH)) {
+        // token0 = WETH, token1 = PICA
+        // price = (sqrtPriceX96 / 2^96)^2 with 18 decimals
+        
+        // Method: Use FullMath-style calculation to avoid overflow
+        // price = sqrtPriceX96^2 * 1e18 / 2^192
+        
+        // Split into: (sqrtPriceX96^2 / 2^64) * 1e18 / 2^128
+        uint256 sqrtPrice = uint256(sqrtPriceX96);
+        uint256 ratioX128 = (sqrtPrice * sqrtPrice) >> 64;  // Now it's X128 format
+        
+        return (ratioX128 * 1e18) >> 128;
+        
+    } else {
+        // token0 = PICA, token1 = WETH
+        // price in pool = WETH/PICA, we need PICA/WETH
+        
+        uint256 sqrtPrice = uint256(sqrtPriceX96);
+        uint256 ratioX128 = (sqrtPrice * sqrtPrice) >> 64;
+        uint256 wethPerPica = (ratioX128 * 1e18) >> 128;
+        
+        require(wethPerPica > 0, "Invalid price");
+        return 1e36 / wethPerPica;
+    }
+}
 
 }

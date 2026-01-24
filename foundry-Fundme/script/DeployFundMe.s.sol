@@ -9,15 +9,11 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 contract DeployFundme is Script {
     function run() external returns (FundMe, NftBrabo) {
-        // Token and price feed addresses
-        address picaTokenAddress = vm.envAddress("PICA");        
-        // Base network ETH/USD price feed
+        address picaTokenAddress = vm.envAddress("BRB");  // Your PICA token   
         address priceFeedAddress = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
 
-        // 🚀 Uniswap V3 addresses on Base network
         address swapRouter = 0x2626664c2603336E57B271c5C0b26F421741e481;     // Base V3 Swap Router
         address positionManager = 0x03a520b32c04bf3beEF7bF5d56831fcB7e84f141;
-        // 🎯 YOUR LP POSITION DETAILS - Get from environment variables
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
 
 

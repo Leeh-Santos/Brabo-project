@@ -31,6 +31,11 @@
         "name": "_positionManager",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_WETH",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
@@ -58,46 +63,7 @@
   },
   {
     "type": "function",
-    "name": "BUYBACK_PERCENTAGE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "GOLD_BONUS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "LIQUIDITY_PERCENTAGE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "MAX_SLIPPAGE",
     "inputs": [],
     "outputs": [
       {
@@ -123,6 +89,32 @@
   },
   {
     "type": "function",
+    "name": "MINLIQADD",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "POOL_FEE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint24",
+        "internalType": "uint24"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "SILVER_BONUS",
     "inputs": [],
     "outputs": [
@@ -136,16 +128,57 @@
   },
   {
     "type": "function",
-    "name": "addLiquidityToPoolExternal",
-    "inputs": [
+    "name": "WETH",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "ethAmount",
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addLiquidityToPool",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "liquidity",
+        "type": "uint128",
+        "internalType": "uint128"
+      },
+      {
+        "name": "amount0",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount1",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "batchAmount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -162,51 +195,11 @@
   },
   {
     "type": "function",
-    "name": "buyTokensFromLPExternal",
-    "inputs": [
-      {
-        "name": "ethAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "name": "brbused",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "calculateUserReward",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "ethAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "baseTokens",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "bonusTokens",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalTokens",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -215,9 +208,26 @@
   },
   {
     "type": "function",
-    "name": "collectAllFees",
-    "inputs": [],
-    "outputs": [],
+    "name": "collectFees",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount0",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount1",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -235,37 +245,41 @@
   },
   {
     "type": "function",
-    "name": "fund",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "getBuybackStats",
-    "inputs": [],
+    "name": "deposits",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
-        "name": "totalBought",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        "name": "totalEthSpent",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "liquidity",
+        "type": "uint128",
+        "internalType": "uint128"
       },
       {
-        "name": "averagePricePerToken",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "token0",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "token1",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "getCurrentPicaPrice",
+    "name": "ethused",
     "inputs": [],
     "outputs": [
       {
@@ -275,6 +289,13 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "fund",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -354,29 +375,6 @@
   },
   {
     "type": "function",
-    "name": "getLiquidityStats",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "totalEthAddedToLP",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalTokensAddedToLP",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidityPercentage",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getOwner",
     "inputs": [],
     "outputs": [
@@ -390,7 +388,7 @@
   },
   {
     "type": "function",
-    "name": "getPicaTokenBalance",
+    "name": "getPicaPerWeth",
     "inputs": [],
     "outputs": [
       {
@@ -403,26 +401,11 @@
   },
   {
     "type": "function",
-    "name": "getSystemStats",
+    "name": "getPicaTokenBalance",
     "inputs": [],
     "outputs": [
       {
-        "name": "buybackEthTotal",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidityEthTotal",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "buybackPercentage",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidityPercentage",
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -481,6 +464,32 @@
   },
   {
     "type": "function",
+    "name": "getWethPerPica",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasMainPosition",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "liquidityPositionIds",
     "inputs": [
       {
@@ -489,6 +498,19 @@
         "internalType": "uint256"
       }
     ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "mainPositionId",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
@@ -552,6 +574,24 @@
   },
   {
     "type": "function",
+    "name": "removeLiquidity",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amount0",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount1",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "rescueStuckETH",
     "inputs": [],
     "outputs": [],
@@ -598,26 +638,37 @@
   },
   {
     "type": "function",
-    "name": "testPoolPrice",
+    "name": "token0",
     "inputs": [],
     "outputs": [
       {
-        "name": "sqrtPriceX96",
-        "type": "uint160",
-        "internalType": "uint160"
-      },
-      {
-        "name": "token0",
+        "name": "",
         "type": "address",
         "internalType": "address"
-      },
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "token1",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "token1",
+        "name": "",
         "type": "address",
         "internalType": "address"
-      },
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalBoughtBack",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "calculatedPrice",
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -730,6 +781,19 @@
     "stateMutability": "nonpayable"
   },
   {
+    "type": "function",
+    "name": "withdrawToken",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
     "name": "BuybackFailed",
     "inputs": [
@@ -791,12 +855,6 @@
       },
       {
         "name": "bonusPercentage",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidityCompensation",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -932,16 +990,6 @@
   },
   {
     "type": "error",
-    "name": "FundMe__BuybackFailed",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "FundMe__InsufficientTokenBalance",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "FundMe__LiquidityAdditionFailed",
     "inputs": []
   },
@@ -952,7 +1000,17 @@
   },
   {
     "type": "error",
-    "name": "FundMe__TokenTransferFailed",
+    "name": "InsufficientPicaBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientPicaBalance2",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
     "inputs": []
   }
 ]
