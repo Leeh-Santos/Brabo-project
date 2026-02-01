@@ -990,12 +990,44 @@
   },
   {
     "type": "error",
-    "name": "FundMe__LiquidityAdditionFailed",
-    "inputs": []
+    "name": "FundMe__InsufficientBatch",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "required",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "FundMe__InsufficientPica",
+    "inputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "needed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
     "name": "FundMe__NotOwner",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FundMe__ZeroPicaAmount",
     "inputs": []
   },
   {

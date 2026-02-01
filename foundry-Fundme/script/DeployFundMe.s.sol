@@ -13,7 +13,8 @@ contract DeployFundme is Script {
         address priceFeedAddress = 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70;
 
         address swapRouter = 0x2626664c2603336E57B271c5C0b26F421741e481;     // Base V3 Swap Router
-        address positionManager = 0x03a520b32c04bf3beEF7bF5d56831fcB7e84f141;
+        //address positionManager = 0x03a520b32c04bf3beEF7bF5d56831fcB7e84f141;
+        address positionManager = 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1;
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
 
 

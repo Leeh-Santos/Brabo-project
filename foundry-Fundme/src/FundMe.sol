@@ -41,6 +41,9 @@ error FundMe__LiquidityAdditionFailed();
 error FundMe__SlippageExceeded();
 error InsufficientPicaBalance();
 error InsufficientPicaBalance2();
+error FundMe__InsufficientBatch(uint256 current, uint256 required);
+error FundMe__ZeroPicaAmount();
+error FundMe__InsufficientPica(uint256 balance, uint256 needed);
         
 contract FundMe is ReentrancyGuard {
     using PriceConverter for uint256;
@@ -55,10 +58,15 @@ contract FundMe is ReentrancyGuard {
 
     uint256[] public liquidityPositionIds;
     address[] private funders;
+
+    mapping(address => bool) private hasLiquidityTriggered;
+    address[] private liquidityTriggers;
+
     uint256 public totalFunders;
     uint256 public totalEthFunded;
     uint256 public batchAmount;
     uint256 public totalBoughtBack;
+    uint256 public totaleth;
 
     //for v2 debugging
     uint256 public brbused;
@@ -139,8 +147,8 @@ contract FundMe is ReentrancyGuard {
         swapRouter = ISwapRouter(_swapRouter);
         positionManager = INonfungiblePositionManager(_positionManager);
         WETH = _WETH;
-        token0 = _WETH;
-        token1 = _picaToken;
+        token0 = picaEthPool.token0();
+        token1 = picaEthPool.token1();
     }
 
     modifier whenNotPaused() {
@@ -158,6 +166,8 @@ contract FundMe is ReentrancyGuard {
     require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
 
     uint256 ethValueInUsd = msg.value.getConversionRate(priceFeed);
+
+    totaleth += msg.value;
     
     // BUY BACK PART
     uint256 buybackAmount = (msg.value * 20) / 100;  
@@ -232,8 +242,6 @@ contract FundMe is ReentrancyGuard {
         totalFunders++;
     }
 
-
-
     emit Funded(msg.sender, msg.value, totalBoughtBack, bonusPercentage);
 }
 
@@ -246,14 +254,20 @@ function addLiquidityToPool() public nonReentrant returns (  //GIVE COMPENSATION
 ) {
 
     if (batchAmount < MINLIQADD) {
-        revert FundMe__LiquidityAdditionFailed();
+         revert FundMe__InsufficientBatch(batchAmount, MINLIQADD);
     }
 
     // require(address(this).balance >= ethAmount, "Insufficient Pica"); check requirements 
     
-    uint256 picaAmount = (getPicaPerWeth() * batchAmount) / 1e18; // Adjust for decimals since is wei     
-    require(picaAmount > 0, "issue calculating PICA amount");    
-    require(picaToken.balanceOf(address(this)) >= picaAmount, "Insufficient PICA in contract");
+    uint256 picaAmount = (getPicaPerWeth() * batchAmount) / 1e18;
+    if (picaAmount == 0) {
+        revert FundMe__ZeroPicaAmount();
+    }    
+    
+    uint256 picaBalance = picaToken.balanceOf(address(this));
+    if (picaBalance < picaAmount) {
+        revert FundMe__InsufficientPica(picaBalance, picaAmount);
+    }
 
      if (hasMainPosition) {
             return _increaseExistingPosition(picaAmount, batchAmount);
@@ -321,6 +335,11 @@ function addLiquidityToPool() public nonReentrant returns (  //GIVE COMPENSATION
     emit LiquidityAdded(ethUsed, picaUsed, tokenId);
 
     batchAmount = 0;
+
+    if (!hasLiquidityTriggered[msg.sender]) {
+        hasLiquidityTriggered[msg.sender] = true;
+        liquidityTriggers.push(msg.sender);
+    }
     
     return (tokenId, liquidity, amount0, amount1);
 }
@@ -375,6 +394,11 @@ function _increaseExistingPosition(uint256 picaAmount, uint256 ethAmount)
         ethused = ethUsed;
     
         batchAmount = 0;
+
+        if (!hasLiquidityTriggered[msg.sender]) {
+            hasLiquidityTriggered[msg.sender] = true;
+            liquidityTriggers.push(msg.sender);
+        }
 
         emit LiquidityAdded(ethUsed, picaUsed, tokenId);
         
@@ -629,5 +653,6 @@ function getPicaPerWeth() public view returns (uint256) {
         return 1e36 / wethPerPica;
     }
 }
+
 
 }
