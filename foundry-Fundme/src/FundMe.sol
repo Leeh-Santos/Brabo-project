@@ -94,7 +94,6 @@ contract FundMe is ReentrancyGuard {
     ISwapRouter public immutable swapRouter;
     INonfungiblePositionManager public immutable positionManager;
     
-    // Split percentages
     
     
     // NFT Tier Bonuses
@@ -305,10 +304,10 @@ function addLiquidityToPool() public nonReentrant returns (  //GIVE COMPENSATION
         tickUpper: tickUpper,
         amount0Desired: picaIsToken0 ? picaAmount : batchAmount,
         amount1Desired: picaIsToken0 ? batchAmount : picaAmount,
-        amount0Min: amount0Min,        // ✅ Added slippage protection
-        amount1Min: amount1Min,        // ✅ Added slippage protection
+        amount0Min: amount0Min,        
+        amount1Min: amount1Min,        
         recipient: address(this),
-        deadline: block.timestamp + 300  // ✅ 5 minute deadline
+        deadline: block.timestamp + 300  
     });
     
     // Mint the position with ETH
@@ -323,8 +322,8 @@ function addLiquidityToPool() public nonReentrant returns (  //GIVE COMPENSATION
     uint256 ethUsed = picaIsToken0 ? amount1 : amount0;
     
     // Track totals with ACTUAL amounts
-    totalEthUsedForLiquidity += ethUsed;        // ✅ Fixed
-    totalTokensAddedToLiquidity += picaUsed;    // ✅ Fixed
+    totalEthUsedForLiquidity += ethUsed;       
+    totalTokensAddedToLiquidity += picaUsed;    
     
     brbused += picaUsed;
     ethused += ethUsed;
@@ -534,11 +533,7 @@ function _increaseExistingPosition(uint256 picaAmount, uint256 ethAmount)
         bool success = picaToken.transferFrom(msg.sender, address(this), amount);
         require(success, "Token deposit failed");
     }
-
-    // Emergency rescue functions
-    function rescueStuckETH() external onlyOwner {
-        payable(i_owner).transfer(address(this).balance);
-    }
+    
 
     function rescueStuckTokens(address tokenAddress) external onlyOwner {
         IERC20 token = IERC20(tokenAddress);
