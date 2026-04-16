@@ -150,7 +150,7 @@ contract FundMe is ReentrancyGuard {
         token1 = picaEthPool.token1();
     }
 
-    modifier whenNotPaused() {
+    modifier whenNotPaused() {  
         require(!paused, "Contract is paused");
         _;
     }

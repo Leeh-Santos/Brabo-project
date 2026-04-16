@@ -17,7 +17,6 @@ contract DeployFundme is Script {
         address positionManager = 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1;
         address picaEthPool = vm.envAddress("PICA_ETH_POOL");    // Your V3 pool address
 
-
         address weth = 0x4200000000000000000000000000000000000006;
     
         vm.startBroadcast(); 
