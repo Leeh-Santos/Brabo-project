@@ -4,8 +4,6 @@ A DeFi ecosystem on Base Mainnet pairing an ERC-20 token with automated buybacks
 
 **Live frontends:** [brabomarkets.com](https://brabomarkets.com) · [brabostaking.com](https://brabostaking.com)
 
-> ⚠️ **Disclaimer.** This is an unaudited DeFi protocol. Smart contracts handle real value and carry real risk. Use at your own discretion and review the code before interacting on mainnet.
-
 ---
 
 ## What is Brabo?
