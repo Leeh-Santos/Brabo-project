@@ -26,7 +26,7 @@ interface ISwapRouter02 {
         uint256 amountOutMinimum;
         uint160 sqrtPriceLimitX96;
     }
-    
+
     function exactInputSingle(ExactInputSingleParams calldata params)
         external
         payable
@@ -45,7 +45,7 @@ error FundMe__InsufficientBatch(uint256 current, uint256 required);
 error FundMe__ZeroPicaAmount();
 error FundMe__InsufficientPica(uint256 balance, uint256 needed);
         
-contract FundMe is ReentrancyGuard {
+contract FundMe is   {
     using PriceConverter for uint256;
 
 
